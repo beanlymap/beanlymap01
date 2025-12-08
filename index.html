@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<title>Beanly Map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Leaflet CSS de pe CDN (funcționează și pe Vercel) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: Arial, sans-serif;
+}
+#map { width: 100%; height: 100vh; }
+#scanner {
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    height: 300px;
+    display: none;
+    z-index: 1000;
+    border: 2px solid #000;
+}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="scanner"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- HTML5 QR Scanner -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Telegram Web App
+    const tg = window.Telegram?.WebApp;
+    if(tg){
+        tg.expand();
+        tg.MainButton.setParams({ text: "📷 Scanează QR", color: "#000000" });
+        tg.MainButton.show();
+        tg.MainButton.onClick(() => startScan());
+    }
+
+    // Leaflet map
+    const map = L.map('map').setView([47.010, 28.835], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Markers
+    const cafes = [
+        { name: "Cafea 1", coords: [47.010, 28.835] },
+        { name: "Cafea 2", coords: [47.015, 28.840] },
+        { name: "Cafea 3", coords: [47.005, 28.830] }
+    ];
+    cafes.forEach(cafe => {
+        L.marker(cafe.coords).addTo(map).bindPopup(cafe.name);
+    });
+
+    // QR Scan
+    function startScan(){
+        const scannerDiv = document.getElementById("scanner");
+        scannerDiv.style.display = "block";
+        const qrScanner = new Html5Qrcode("scanner");
+        qrScanner.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: 250 },
+            decodedText => {
+                qrScanner.stop();
+                scannerDiv.style.display = "none";
+                handleRating(decodedText);
+            },
+            errorMessage => { }
+        );
+    }
+
+    // Rating
+    function handleRating(cafeName){
+        let rating = prompt(`Ai scanat QR pentru ${cafeName}. Lasă un rating de la 1 la 10:`);
+        rating = parseInt(rating);
+        if(!isNaN(rating) && rating>=1 && rating<=10){
+            alert(`Mulțumim! Ai dat ${rating} stele pentru ${cafeName}`);
+        } else {
+            alert("Rating invalid. Te rog introdu un număr de la 1 la 10.");
+        }
+    }
+});
+</script>
+</body>
+</html>
