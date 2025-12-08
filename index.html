@@ -72,15 +72,57 @@ document.addEventListener("DOMContentLoaded", function() {
     // Markers for cafes
     // =======================
     const cafes = [
-        { name: "Cafea Central", coords: [47.010, 28.835] },
-        { name: "Cafea Verde", coords: [47.012, 28.840] },
-        { name: "Cafea Latte", coords: [47.005, 28.830] }
-    ];
+    { id: "coffee_vibe", name: "Coffee Vibe", coords: [47.0246, 28.8325] },
+    { id: "tucano_center", name: "Tucano Coffee (Centru)", coords: [47.0240, 28.8365] },
+    { id: "coffee_house", name: "Coffee House", coords: [47.0218, 28.8371] },
+    { id: "arte_cafe", name: "Arte Café", coords: [47.0188, 28.8353] },
+    { id: "creme_de_la_creme", name: "Crème de la Crème", coords: [47.0147, 28.8316] }
+];
+
+function getRating(cafeId) {
+    const data = localStorage.getItem(cafeId);
+    if (!data) return { total: 0, votes: 0 };
+    return JSON.parse(data);
+}
+
+function saveRating(cafeId, rating) {
+    const data = getRating(cafeId);
+    data.total += rating;
+    data.votes += 1;
+    localStorage.setItem(cafeId, JSON.stringify(data));
+}
+
+function getAverage(cafeId) {
+    const data = getRating(cafeId);
+    if (data.votes === 0) return "Nu are rating";
+    return (data.total / data.votes).toFixed(1) + " ⭐";
+}
 
     cafes.forEach(cafe => {
-        L.marker(cafe.coords).addTo(map)
-            .bindPopup(cafe.name);
-    });
+    const avg = getAverage(cafe.id);
+
+    const marker = L.marker(cafe.coords).addTo(map)
+        .bindPopup(`
+            <b>${cafe.name}</b><br>
+            Rating: ${avg}<br><br>
+            <button onclick="rateCafe('${cafe.id}', '${cafe.name}')">
+                Lasă un rating
+            </button>
+        `);
+});
+function rateCafe(cafeId, cafeName) {
+    let rating = prompt(`Dă un rating pentru ${cafeName} (1-10):`);
+    rating = parseInt(rating);
+
+    if (!isNaN(rating) && rating >= 1 && rating <= 10) {
+        saveRating(cafeId, rating);
+        alert("✅ Mulțumim pentru vot!");
+        location.reload(); // reîncarcă harta ca să vezi ratingul actualizat
+    } else {
+        alert("❌ Rating invalid. Introdu un număr între 1 și 10.");
+    }
+}
+
 
     // =======================
     // QR Scanner function
@@ -122,3 +164,4 @@ document.addEventListener("DOMContentLoaded", function() {
 
 </body>
 </html>
+ 
