@@ -5,7 +5,7 @@
 <title>Beanly Map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Leaflet CSS de pe CDN (funcționează și pe Vercel) -->
+<!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
@@ -42,60 +42,83 @@ html, body {
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    // Telegram Web App
+
+    // =======================
+    // Telegram Web App setup
+    // =======================
     const tg = window.Telegram?.WebApp;
-    if(tg){
+    if (tg) {
         tg.expand();
         tg.MainButton.setParams({ text: "📷 Scanează QR", color: "#000000" });
         tg.MainButton.show();
-        tg.MainButton.onClick(() => startScan());
+        tg.MainButton.onClick(() => {
+            startScan();
+        });
     }
 
-    // Leaflet map
+    // =======================
+    // Initialize Leaflet map
+    // =======================
     const map = L.map('map').setView([47.010, 28.835], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
+
+    // Tile layer modern gratuit (Carto Light)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
     }).addTo(map);
 
-    // Markers
+    // =======================
+    // Markers for cafes
+    // =======================
     const cafes = [
-        { name: "Cafea 1", coords: [47.010, 28.835] },
-        { name: "Cafea 2", coords: [47.015, 28.840] },
-        { name: "Cafea 3", coords: [47.005, 28.830] }
+        { name: "Cafea Central", coords: [47.010, 28.835] },
+        { name: "Cafea Verde", coords: [47.012, 28.840] },
+        { name: "Cafea Latte", coords: [47.005, 28.830] }
     ];
+
     cafes.forEach(cafe => {
-        L.marker(cafe.coords).addTo(map).bindPopup(cafe.name);
+        L.marker(cafe.coords).addTo(map)
+            .bindPopup(cafe.name);
     });
 
-    // QR Scan
-    function startScan(){
+    // =======================
+    // QR Scanner function
+    // =======================
+    function startScan() {
         const scannerDiv = document.getElementById("scanner");
         scannerDiv.style.display = "block";
+
         const qrScanner = new Html5Qrcode("scanner");
         qrScanner.start(
             { facingMode: "environment" },
             { fps: 10, qrbox: 250 },
-            decodedText => {
+            (decodedText) => {
                 qrScanner.stop();
                 scannerDiv.style.display = "none";
                 handleRating(decodedText);
             },
-            errorMessage => { }
+            (errorMessage) => {
+                // erori ignorate
+            }
         );
     }
 
-    // Rating
-    function handleRating(cafeName){
+    // =======================
+    // Rating function
+    // =======================
+    function handleRating(cafeName) {
         let rating = prompt(`Ai scanat QR pentru ${cafeName}. Lasă un rating de la 1 la 10:`);
         rating = parseInt(rating);
-        if(!isNaN(rating) && rating>=1 && rating<=10){
+        if (!isNaN(rating) && rating >= 1 && rating <= 10) {
             alert(`Mulțumim! Ai dat ${rating} stele pentru ${cafeName}`);
         } else {
             alert("Rating invalid. Te rog introdu un număr de la 1 la 10.");
         }
     }
+
 });
 </script>
+
 </body>
 </html>
