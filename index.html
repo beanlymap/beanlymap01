@@ -28,24 +28,25 @@
     }
 
     /* Leaderboard */
-    #leaderboard {
+        #leaderboard {
       position: absolute;
       top: 10px;
       left: 10px;
       z-index: 900;
       background: rgba(255, 255, 255, 0.95);
-      padding: 10px 12px;
+      padding: 6px 8px;
       border-radius: 10px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      max-width: 220px;
-      font-size: 12px;
-      line-height: 1.4;
+      max-width: 170px;
+      font-size: 11px;
+      line-height: 1.3;
     }
 
     #leaderboard h4 {
-      margin: 0 0 6px;
-      font-size: 13px;
+      margin: 0 0 4px;
+      font-size: 12px;
     }
+
 
     #leaderboard ul {
       list-style: none;
@@ -171,6 +172,11 @@
       cursor: default;
       background: #444;
     }
+        /* ascundem butoanele + / - ale hărții */
+    .leaflet-control-zoom {
+      display: none;
+    }
+
   </style>
 </head>
 <body>
@@ -287,39 +293,40 @@
   let globalRatings = {}; // { cafeId: { avg, votes } }
   const leaderboardEl = document.getElementById("leaderboard");
 
-  function buildLeaderboard() {
+    function buildLeaderboard() {
     if (!leaderboardEl) return;
 
+    // construim lista cu info de rating
     const items = cafes.map(cafe => {
       const info = globalRatings[cafe.id];
       return { id: cafe.id, name: cafe.name, info };
     });
 
-    items.sort((a, b) => {
-      const ai = a.info, bi = b.info;
-      if (!ai && !bi) return 0;
-      if (!ai) return 1;
-      if (!bi) return -1;
-      return bi.avg - ai.avg;
-    });
+    // păstrăm doar cele care au măcar un vot
+    const rated = items.filter(it => it.info && it.info.votes > 0);
 
-    const anyWithVotes = items.some(it => it.info && it.info.votes > 0);
-    if (!anyWithVotes) {
+    if (!rated.length) {
       leaderboardEl.innerHTML = `
-        <h4>Top cafenele</h4>
+        <h4>Top ☕</h4>
         <div style="font-size:11px;color:#555;">Încă nu sunt ratinguri. Fii primul care votează!</div>
       `;
       return;
     }
 
-    let html = `<h4>Top cafenele</h4><ul>`;
-    items.forEach(it => {
-      if (!it.info || !it.info.votes) return;
+    // sortăm după medie descrescător
+    rated.sort((a, b) => b.info.avg - a.info.avg);
+
+    // luăm doar primele 5
+    const top = rated.slice(0, 5);
+
+    let html = `<h4>Top ☕</h4><ul>`;
+    top.forEach(it => {
       const avg = it.info.avg.toFixed(1);
+      const votes = it.info.votes;
       html += `
         <li data-id="${it.id}">
           <span class="name">${it.name}</span><br>
-          <span class="stats">${avg} ⭐ · ${it.info.votes} voturi</span>
+          <span class="stats">${avg} ⭐ · (${votes})</span>
         </li>
       `;
     });
@@ -327,7 +334,22 @@
 
     leaderboardEl.innerHTML = html;
 
+    // click pe element => centram harta pe cafenea și deschidem popup-ul
     const lis = leaderboardEl.querySelectorAll("li[data-id]");
+    lis.forEach(li => {
+      li.addEventListener("click", () => {
+        const id = li.getAttribute("data-id");
+        const cafe = cafes.find(c => c.id === id);
+        if (!cafe || !map) return;
+        map.setView(cafe.coords, 15);
+        const marker = markers[id];
+        if (marker) {
+          marker.openPopup();
+        }
+      });
+    });
+  }
+
     lis.forEach(li => {
       li.addEventListener("click", () => {
         const id = li.getAttribute("data-id");
