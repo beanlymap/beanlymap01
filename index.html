@@ -275,31 +275,28 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await loadRatings();
 
-  map = L.map('map', {
+ map = L.map('map', {
   center: [47.040, 28.85],
   zoom: 12.5,
-  zoomSnap: 0.25,
-  zoomDelta: 0.5,
+
+  // 🔥 zoom mai puternic la scroll
+  zoomSnap: 0.5,
+  zoomDelta: 1,              // fiecare „clic” de scroll = un nivel întreg
+  scrollWheelZoom: true,
+  wheelDebounceTime: 20,
+  wheelPxPerZoomLevel: 20,   // mai puțini pixeli pentru o schimbare de zoom
+
   zoomAnimation: true,
   markerZoomAnimation: true,
-  wheelDebounceTime: 15,
-  wheelPxPerZoomLevel: 20,
 
-
-  // zoom-out maxim (cum ți-a plăcut acum)
   minZoom: 3.2,
-
-  // ⛔ NU mai lăsăm userul să iasă din glob
   maxBounds: [
-    [85, -180],   // nord-vest
-    [-85, 180]    // sud-est
+    [85, -180],
+    [-85, 180]
   ],
-  maxBoundsViscosity: 1.0,  // „elastic” la margine
-  worldCopyJump: false      // nu mai sare în copia următoare a lumii
+  maxBoundsViscosity: 1.0,
+  worldCopyJump: false
 });
-
-
-
 
   /* ---------------------------
      MAPTILER STYLE
