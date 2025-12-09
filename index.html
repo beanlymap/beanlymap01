@@ -276,16 +276,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadRatings();
 
   map = L.map('map', {
-    center: [47.040, 28.85],
-    zoom: 12.5,
-    zoomSnap: 0.25,
-    zoomDelta: 0.5,
-    zoomAnimation: true,
-    markerZoomAnimation: true,
-    wheelDebounceTime: 40,
-    wheelPxPerZoomLevel: 80,
-    minZoom: 2.3           // <- VIRGULA era problema
-  });
+  center: [47.040, 28.85],
+  zoom: 12.5,
+  zoomSnap: 0.25,
+  zoomDelta: 0.5,
+  zoomAnimation: true,
+  markerZoomAnimation: true,
+  wheelDebounceTime: 40,
+  wheelPxPerZoomLevel: 80,
+
+  // 🔥 ADĂUGAT — Limitele hărții
+  maxBounds: [
+    [85, -180],   // colțul stânga sus (Lat, Lng)
+    [-85, 180]    // colțul dreapta jos (Lat, Lng)
+  ],
+  maxBoundsViscosity: 0.8 // face „elastic” marginile
+});
+
 
   /* ---------------------------
      MAPTILER STYLE
