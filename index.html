@@ -27,8 +27,8 @@
       height: 100vh;
     }
 
-    /* Leaderboard */
-        #leaderboard {
+    /* Leaderboard mic */
+    #leaderboard {
       position: absolute;
       top: 10px;
       left: 10px;
@@ -46,7 +46,6 @@
       margin: 0 0 4px;
       font-size: 12px;
     }
-
 
     #leaderboard ul {
       list-style: none;
@@ -66,6 +65,11 @@
     #leaderboard li span.stats {
       color: #555;
       font-size: 11px;
+    }
+
+    /* ascundem butoanele + / - ale hărții */
+    .leaflet-control-zoom {
+      display: none;
     }
 
     /* Modal rating */
@@ -172,11 +176,6 @@
       cursor: default;
       background: #444;
     }
-        /* ascundem butoanele + / - ale hărții */
-    .leaflet-control-zoom {
-      display: none;
-    }
-
   </style>
 </head>
 <body>
@@ -238,9 +237,9 @@
     5: "🤩"
   };
 
-  // harta + markere (vizibile și din alte funcții)
+  // hartă + markere
   let map = null;
-  const markers = {}; // id cafe -> marker Leaflet
+  const markers = {};
 
   // =======================
   // Device ID
@@ -268,13 +267,13 @@
     }
   }
 
-  function setUserRatingsMap(map) {
-    localStorage.setItem("beanly_user_ratings", JSON.stringify(map));
+  function setUserRatingsMap(mapObj) {
+    localStorage.setItem("beanly_user_ratings", JSON.stringify(mapObj));
   }
 
   function getUserRating(cafeId) {
-    const map = getUserRatingsMap();
-    return typeof map[cafeId] === "number" ? map[cafeId] : null;
+    const mapObj = getUserRatingsMap();
+    return typeof mapObj[cafeId] === "number" ? mapObj[cafeId] : null;
   }
 
   function hasUserRated(cafeId) {
@@ -282,9 +281,9 @@
   }
 
   function registerUserRatingLocal(cafeId, rating) {
-    const map = getUserRatingsMap();
-    map[cafeId] = rating;
-    setUserRatingsMap(map);
+    const mapObj = getUserRatingsMap();
+    mapObj[cafeId] = rating;
+    setUserRatingsMap(mapObj);
   }
 
   // =======================
@@ -293,16 +292,14 @@
   let globalRatings = {}; // { cafeId: { avg, votes } }
   const leaderboardEl = document.getElementById("leaderboard");
 
-    function buildLeaderboard() {
+  function buildLeaderboard() {
     if (!leaderboardEl) return;
 
-    // construim lista cu info de rating
     const items = cafes.map(cafe => {
       const info = globalRatings[cafe.id];
       return { id: cafe.id, name: cafe.name, info };
     });
 
-    // păstrăm doar cele care au măcar un vot
     const rated = items.filter(it => it.info && it.info.votes > 0);
 
     if (!rated.length) {
@@ -313,10 +310,7 @@
       return;
     }
 
-    // sortăm după medie descrescător
     rated.sort((a, b) => b.info.avg - a.info.avg);
-
-    // luăm doar primele 5
     const top = rated.slice(0, 5);
 
     let html = `<h4>Top ☕</h4><ul>`;
@@ -334,22 +328,7 @@
 
     leaderboardEl.innerHTML = html;
 
-    // click pe element => centram harta pe cafenea și deschidem popup-ul
     const lis = leaderboardEl.querySelectorAll("li[data-id]");
-    lis.forEach(li => {
-      li.addEventListener("click", () => {
-        const id = li.getAttribute("data-id");
-        const cafe = cafes.find(c => c.id === id);
-        if (!cafe || !map) return;
-        map.setView(cafe.coords, 15);
-        const marker = markers[id];
-        if (marker) {
-          marker.openPopup();
-        }
-      });
-    });
-  }
-
     lis.forEach(li => {
       li.addEventListener("click", () => {
         const id = li.getAttribute("data-id");
