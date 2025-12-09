@@ -27,7 +27,8 @@
       height: 100vh;
     }
 
-        #leaderboard {
+    /* Leaderboard */
+    #leaderboard {
       position: absolute;
       top: 10px;
       left: 10px;
@@ -65,7 +66,6 @@
       color: #555;
       font-size: 11px;
     }
-
 
     /* Modal rating */
     #rating-modal-backdrop {
@@ -175,19 +175,15 @@
 </head>
 <body>
 
-<body>
-
 <div id="map"></div>
 <div id="leaderboard"></div>
 
 <!-- Modal rating -->
 <div id="rating-modal-backdrop">
-
   <div id="rating-modal">
     <h3 id="rating-title">Lasă un rating</h3>
     <p id="rating-subtitle"></p>
 
-    <!-- stele 1–5 -->
     <div id="rating-stars">
       <span class="star" data-value="1">★</span>
       <span class="star" data-value="2">★</span>
@@ -196,7 +192,6 @@
       <span class="star" data-value="5">★</span>
     </div>
 
-    <!-- emoji asociat ratingului -->
     <div id="rating-emoji"></div>
 
     <div class="modal-actions">
@@ -229,7 +224,6 @@
     { id: "grand_coffee_place",  name: "Grand Coffee Place",  coords: [47.001321, 28.871157] }
   ];
 
-  // Emoji pentru rating 1–5
   const ratingEmojis = {
     1: "😣",
     2: "😕",
@@ -237,6 +231,10 @@
     4: "🙂",
     5: "🤩"
   };
+
+  // harta + markere (vizibile și din alte funcții)
+  let map = null;
+  const markers = {}; // id cafe -> marker Leaflet
 
   // =======================
   // Device ID
@@ -292,17 +290,11 @@
   function buildLeaderboard() {
     if (!leaderboardEl) return;
 
-    // construim o listă de { cafe, avg, votes }
     const items = cafes.map(cafe => {
       const info = globalRatings[cafe.id];
-      return {
-        id: cafe.id,
-        name: cafe.name,
-        info
-      };
+      return { id: cafe.id, name: cafe.name, info };
     });
 
-    // sortăm: cele cu rating primele, după medie descrescător
     items.sort((a, b) => {
       const ai = a.info, bi = b.info;
       if (!ai && !bi) return 0;
@@ -311,7 +303,6 @@
       return bi.avg - ai.avg;
     });
 
-    // dacă niciuna nu are rating
     const anyWithVotes = items.some(it => it.info && it.info.votes > 0);
     if (!anyWithVotes) {
       leaderboardEl.innerHTML = `
@@ -336,14 +327,12 @@
 
     leaderboardEl.innerHTML = html;
 
-    // click pe element => centram harta pe cafenea
     const lis = leaderboardEl.querySelectorAll("li[data-id]");
     lis.forEach(li => {
       li.addEventListener("click", () => {
         const id = li.getAttribute("data-id");
         const cafe = cafes.find(c => c.id === id);
-        if (!cafe) return;
-        // centram harta si deschidem popup
+        if (!cafe || !map) return;
         map.setView(cafe.coords, 15);
         const marker = markers[id];
         if (marker) {
@@ -364,20 +353,20 @@
         return;
       }
 
-      const map = {};
+      const agg = {};
       (data || []).forEach(row => {
         const id = row.cafe_id;
         const r = row.rating;
-        if (!map[id]) {
-          map[id] = { sum: 0, count: 0 };
+        if (!agg[id]) {
+          agg[id] = { sum: 0, count: 0 };
         }
-        map[id].sum += r;
-        map[id].count += 1;
+        agg[id].sum += r;
+        agg[id].count += 1;
       });
 
       const result = {};
-      Object.keys(map).forEach(id => {
-        const { sum, count } = map[id];
+      Object.keys(agg).forEach(id => {
+        const { sum, count } = agg[id];
         result[id] = {
           avg: sum / count,
           votes: count
@@ -385,8 +374,7 @@
       });
 
       globalRatings = result;
-          buildLeaderboard();
-
+      buildLeaderboard();
     } catch (e) {
       console.warn("Eroare la loadGlobalRatings:", e);
     }
@@ -519,10 +507,6 @@
   // =======================
   // Init
   // =======================
-  
-    let map = null;
-  const markers = {}; // id cafe -> marker Leaflet
-
   document.addEventListener("DOMContentLoaded", async function() {
     const tg = window.Telegram && window.Telegram.WebApp;
     if (tg) {
@@ -532,7 +516,7 @@
 
     await loadGlobalRatings();
 
-    map = L.map('map').setView([47.040, 28.85], 12.5)
+    map = L.map('map').setView([47.040, 28.85], 12.5);
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
@@ -547,9 +531,7 @@
       const buttonDisabled = userRating ? 'disabled="disabled"' : "";
 
       const marker = L.marker(cafe.coords).addTo(map)
-              markers[cafe.id] = marker;
-
-      .bindPopup(`
+        .bindPopup(`
           <div class="popup">
             <b>${cafe.name}</b><br>
             Rating: ${avgText}<br><br>
@@ -558,6 +540,8 @@
             </button>
           </div>
         `);
+
+      markers[cafe.id] = marker;
 
       marker.on('popupopen', (e) => {
         const btn = e.popup._contentNode.querySelector('.rate-btn');
