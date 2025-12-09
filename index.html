@@ -31,20 +31,6 @@
       height: 100vh;
     }
 
-    /* Overlay pentru Night Mode */
-    #night-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 400;
-      pointer-events: none;
-      display: none;
-      background:
-        radial-gradient(circle at 30% 20%, rgba(56,189,248,0.18), transparent 55%),
-        radial-gradient(circle at 80% 80%, rgba(94,234,212,0.15), transparent 55%),
-        rgba(15,23,42,0.50);
-      mix-blend-mode: multiply;
-    }
-
     /* Leaderboard mic */
     #leaderboard {
       position: absolute;
@@ -202,7 +188,6 @@
 <body>
 
 <div id="map"></div>
-<div id="night-overlay"></div>
 <div id="leaderboard"></div>
 <div id="theme-toggle" title="Schimbă tema">🌙</div>
 
@@ -286,26 +271,11 @@ function getInitialTheme() {
   if (saved === "day" || saved === "night") return saved;
 
   const hour = new Date().getHours();
-  // între 20:00 și 07:00 -> night
   if (hour >= 20 || hour < 7) return "night";
   return "day";
 }
 
 let currentTheme = getInitialTheme();
-
-function applyTheme() {
-  const overlay = document.getElementById("night-overlay");
-  const toggle = document.getElementById("theme-toggle");
-  if (!overlay || !toggle) return;
-
-  if (currentTheme === "night") {
-    overlay.style.display = "block";
-    toggle.textContent = "☀️";
-  } else {
-    overlay.style.display = "none";
-    toggle.textContent = "🌙";
-  }
-}
 
 /* ---------------------------
    LOAD RATINGS FROM SUPABASE
@@ -393,6 +363,7 @@ async function sendRating(id, rating) {
 
 let map;
 const markers = {};
+let dayLayer, nightLayer;
 
 // Marker Beanly personalizat (divIcon)
 const beanlyIcon = L.divIcon({
@@ -401,6 +372,21 @@ const beanlyIcon = L.divIcon({
   iconSize: [34, 40],
   iconAnchor: [17, 40]
 });
+
+function applyTheme() {
+  const toggle = document.getElementById("theme-toggle");
+  if (!map || !dayLayer || !nightLayer || !toggle) return;
+
+  if (currentTheme === "night") {
+    if (map.hasLayer(dayLayer)) map.removeLayer(dayLayer);
+    if (!map.hasLayer(nightLayer)) map.addLayer(nightLayer);
+    toggle.textContent = "☀️";
+  } else {
+    if (map.hasLayer(nightLayer)) map.removeLayer(nightLayer);
+    if (!map.hasLayer(dayLayer)) map.addLayer(dayLayer);
+    toggle.textContent = "🌙";
+  }
+}
 
 document.addEventListener("DOMContentLoaded", async () => {
   const tg = window.Telegram?.WebApp;
@@ -434,11 +420,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     worldCopyJump: false
   });
 
-  /* ---------------------------
-     MAPTILER STYLE
-  ---------------------------- */
-
-  L.tileLayer(
+  // LAYER DAY (streets-v4)
+  dayLayer = L.tileLayer(
     `https://api.maptiler.com/maps/streets-v4/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
     {
       maxZoom: 19,
@@ -450,7 +433,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
         'contributors & <a href="https://www.maptiler.com/">MapTiler</a>'
     }
-  ).addTo(map);
+  );
+
+  // LAYER NIGHT (dark style - Waze-like)
+  nightLayer = L.tileLayer(
+    `https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+    {
+      maxZoom: 19,
+      tileSize: 512,
+      zoomOffset: -1,
+      detectRetina: true,
+      noWrap: true,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
+        'contributors & <a href="https://www.maptiler.com/">MapTiler</a>'
+    }
+  );
+
+  // aplicăm tema inițială
+  applyTheme();
+
+  // buton toggle zi/noapte
+  const toggle = document.getElementById("theme-toggle");
+  if (toggle) {
+    toggle.addEventListener("click", () => {
+      currentTheme = currentTheme === "night" ? "day" : "night";
+      localStorage.setItem(THEME_KEY, currentTheme);
+      applyTheme();
+    });
+  }
 
   /* ---------------------------
      MARKERS
@@ -471,19 +482,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     markers[cafe.id] = marker;
   });
-
-  // aplicăm tema inițială (day/night)
-  applyTheme();
-
-  // handler pentru butonul de schimbare a temei
-  const toggle = document.getElementById("theme-toggle");
-  if (toggle) {
-    toggle.addEventListener("click", () => {
-      currentTheme = currentTheme === "night" ? "day" : "night";
-      localStorage.setItem(THEME_KEY, currentTheme);
-      applyTheme();
-    });
-  }
 });
 
 /* ---------------------------
