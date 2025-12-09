@@ -71,9 +71,11 @@
       font-size: 11px;
     }
 
-    /* Hide zoom buttons */
-    .leaflet-control-zoom {
-      display: none;
+    /* Zoom buttons: ascunse pe telefon, vizibile pe desktop */
+    @media (max-width: 768px) {
+      .leaflet-control-zoom {
+        display: none;
+      }
     }
 
     /* Modal rating */
@@ -95,10 +97,28 @@
       box-shadow: 0 8px 24px rgba(0,0,0,0.25);
     }
 
+    #rating-modal h3 {
+      margin: 0 0 4px;
+      font-size: 18px;
+    }
+
+    #rating-modal p {
+      margin: 0 0 10px;
+      font-size: 14px;
+    }
+
+    #rating-stars {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
     .star {
       font-size: 26px;
       cursor: pointer;
       color: #bbb;
+      user-select: none;
     }
 
     .star.active {
@@ -107,6 +127,41 @@
 
     .leaflet-tile {
       image-rendering: auto;
+    }
+
+    /* Marker Beanly custom */
+    .beanly-marker {
+      background: none;
+      border: none;
+    }
+
+    .beanly-marker-inner {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #ffbf69;              /* portocaliu cald */
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: #4b2e16;                   /* culoare „cafea” */
+      position: relative;
+    }
+
+    .beanly-marker-inner::after {
+      content: "";
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid #ffbf69;
+      filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
     }
   </style>
 </head>
@@ -156,10 +211,10 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 ---------------------------- */
 
 const cafes = [
-  { id: "coffee_drive", name: "COFFEE DRIVE", coords: [47.060133, 28.874532] },
-  { id: "coffee_stop", name: "Coffee Stop", coords: [47.066017, 28.856687] },
+  { id: "coffee_drive",       name: "COFFEE DRIVE",       coords: [47.060133, 28.874532] },
+  { id: "coffee_stop",        name: "Coffee Stop",        coords: [47.066017, 28.856687] },
   { id: "black_coffee_drive", name: "Black Coffee Drive", coords: [47.046993, 28.779928] },
-  { id: "flamingo_coffee", name: "Flamingo Coffee", coords: [47.061938, 28.848433] },
+  { id: "flamingo_coffee",    name: "Flamingo Coffee",    coords: [47.061938, 28.848433] },
   { id: "grand_coffee_place", name: "Grand Coffee Place", coords: [47.001321, 28.871157] }
 ];
 
@@ -244,8 +299,11 @@ function buildLeaderboard() {
   box.querySelectorAll("li").forEach(li => {
     li.onclick = () => {
       const cafe = cafes.find(c => c.id === li.dataset.id);
+      if (!cafe || !map) return;
       map.setView(cafe.coords, 15);
-      markers[cafe.id].openPopup();
+      if (markers[cafe.id]) {
+        markers[cafe.id].openPopup();
+      }
     };
   });
 }
@@ -263,66 +321,76 @@ async function sendRating(id, rating) {
 }
 
 /* ---------------------------
-   INIT MAP
+   MAP & MARKERS
 ---------------------------- */
 
 let map;
 const markers = {};
 
+// Marker Beanly personalizat (divIcon)
+const beanlyIcon = L.divIcon({
+  className: "beanly-marker",
+  html: '<div class="beanly-marker-inner">☕</div>',
+  iconSize: [34, 40],
+  iconAnchor: [17, 40]
+});
+
 document.addEventListener("DOMContentLoaded", async () => {
   const tg = window.Telegram?.WebApp;
-  tg && tg.expand();
+  if (tg) tg.expand();
 
   await loadRatings();
 
- map = L.map('map', {
-  center: [47.040, 28.85],
-  zoom: 12.5,
+  map = L.map('map', {
+    center: [47.040, 28.85],
+    zoom: 12.5,
 
-  // 🔥 zoom mai puternic la scroll
-  zoomSnap: 0.5,
-  zoomDelta: 1,              // fiecare „clic” de scroll = un nivel întreg
-  scrollWheelZoom: true,
-  wheelDebounceTime: 20,
-  wheelPxPerZoomLevel: 20,   // mai puțini pixeli pentru o schimbare de zoom
+    // zoom mai agresiv pe PC
+    zoomSnap: 0.5,
+    zoomDelta: 1,
+    scrollWheelZoom: true,
+    wheelDebounceTime: 20,
+    wheelPxPerZoomLevel: 20,
 
-  zoomAnimation: true,
-  markerZoomAnimation: true,
+    zoomAnimation: true,
+    markerZoomAnimation: true,
 
-  minZoom: 3.2,
-  maxBounds: [
-    [85, -180],
-    [-85, 180]
-  ],
-  maxBoundsViscosity: 1.0,
-  worldCopyJump: false
-});
+    // limitare zoom-out
+    minZoom: 3.2,
+
+    // limităm lumea la un singur glob, fără dubluri
+    maxBounds: [
+      [85, -180],
+      [-85, 180]
+    ],
+    maxBoundsViscosity: 1.0,
+    worldCopyJump: false
+  });
 
   /* ---------------------------
      MAPTILER STYLE
   ---------------------------- */
 
   L.tileLayer(
-  `https://api.maptiler.com/maps/streets-v4/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
-  {
-    maxZoom: 19,
-    tileSize: 512,
-    zoomOffset: -1,
-    detectRetina: true,
-    noWrap: true,    // ⛔ nu mai repeta harta în lateral
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
-      'contributors & <a href="https://www.maptiler.com/">MapTiler</a>'
-  }
-).addTo(map);
-
+    `https://api.maptiler.com/maps/streets-v4/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+    {
+      maxZoom: 19,
+      tileSize: 512,
+      zoomOffset: -1,
+      detectRetina: true,
+      noWrap: true,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
+        'contributors & <a href="https://www.maptiler.com/">MapTiler</a>'
+    }
+  ).addTo(map);
 
   /* ---------------------------
      MARKERS
   ---------------------------- */
 
   cafes.forEach(cafe => {
-    const marker = L.marker(cafe.coords).addTo(map);
+    const marker = L.marker(cafe.coords, { icon: beanlyIcon }).addTo(map);
 
     marker.bindPopup(`
       <b>${cafe.name}</b><br>
@@ -344,14 +412,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 window.openModal = function (cafeId) {
   currentCafe = cafeId;
-  document.getElementById("rating-cafe-name").innerText =
-    cafes.find(c => c.id === cafeId).name;
+  const cafe = cafes.find(c => c.id === cafeId);
+  document.getElementById("rating-cafe-name").innerText = cafe ? cafe.name : "";
 
   document.getElementById("rating-modal-backdrop").style.display = "flex";
 };
 
 document.getElementById("cancelBtn").onclick = () => {
   document.getElementById("rating-modal-backdrop").style.display = "none";
+  currentRating = null;
+  document.querySelectorAll(".star").forEach(s => s.classList.remove("active"));
 };
 
 document.querySelectorAll(".star").forEach(star => {
@@ -369,11 +439,20 @@ document.getElementById("sendBtn").onclick = async () => {
     return;
   }
 
-  await sendRating(currentCafe, currentRating);
-  alert("Mulțumim!");
+  try {
+    await sendRating(currentCafe, currentRating);
+    alert("Mulțumim!");
 
-  document.getElementById("rating-modal-backdrop").style.display = "none";
-  location.reload();
+    document.getElementById("rating-modal-backdrop").style.display = "none";
+    currentRating = null;
+    document.querySelectorAll(".star").forEach(s => s.classList.remove("active"));
+
+    // Reîncarcăm pagina ca să se actualizeze ratingurile și leaderboard-ul
+    location.reload();
+  } catch (e) {
+    console.error(e);
+    alert("A apărut o eroare la trimiterea ratingului.");
+  }
 };
 </script>
 
