@@ -70,20 +70,29 @@
     /* Stele */
     #rating-stars {
       display: flex;
-      flex-wrap: wrap;
       gap: 4px;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
+      justify-content: center;
     }
 
     .star {
-      font-size: 22px;
+      font-size: 24px;
       color: #cccccc;
       cursor: pointer;
       user-select: none;
+      transition: transform 0.1s ease, color 0.1s ease;
     }
 
     .star.active {
       color: #f5b301;
+      transform: scale(1.05);
+    }
+
+    #rating-emoji {
+      text-align: center;
+      font-size: 22px;
+      margin-bottom: 10px;
+      min-height: 26px;
     }
 
     .modal-actions {
@@ -139,19 +148,17 @@
     <h3 id="rating-title">Lasă un rating</h3>
     <p id="rating-subtitle"></p>
 
-    <!-- stele 1–10 -->
+    <!-- stele 1–5 -->
     <div id="rating-stars">
       <span class="star" data-value="1">★</span>
       <span class="star" data-value="2">★</span>
       <span class="star" data-value="3">★</span>
       <span class="star" data-value="4">★</span>
       <span class="star" data-value="5">★</span>
-      <span class="star" data-value="6">★</span>
-      <span class="star" data-value="7">★</span>
-      <span class="star" data-value="8">★</span>
-      <span class="star" data-value="9">★</span>
-      <span class="star" data-value="10">★</span>
     </div>
+
+    <!-- emoji asociat ratingului -->
+    <div id="rating-emoji"></div>
 
     <div class="modal-actions">
       <button id="rating-cancel" class="btn-secondary">Anulează</button>
@@ -172,36 +179,86 @@
   // =======================
   const cafes = [
     { id: "coffee_drive",        name: "COFFEE DRIVE",        coords: [47.060133, 28.874532] },
-    { id: "coffee_stop",         name: "Coffee Stop",          coords: [47.066017, 28.856687] },
-    { id: "black_coffee_drive",  name: "Black Coffee Drive",   coords: [47.046993, 28.779928] },
-    { id: "flamingo_coffee",     name: "Flamingo Coffee",      coords: [47.061938, 28.848433] },
-    { id: "grand_coffee_place",  name: "Grand Coffee Place",   coords: [47.001321, 28.871157] }
+    { id: "coffee_stop",         name: "Coffee Stop",         coords: [47.066017, 28.856687] },
+    { id: "black_coffee_drive",  name: "Black Coffee Drive",  coords: [47.046993, 28.779928] },
+    { id: "flamingo_coffee",     name: "Flamingo Coffee",     coords: [47.061938, 28.848433] },
+    { id: "grand_coffee_place",  name: "Grand Coffee Place",  coords: [47.001321, 28.871157] }
   ];
 
+  // Emoji pentru rating 1–5
+  const ratingEmojis = {
+    1: "😣",
+    2: "😕",
+    3: "😐",
+    4: "🙂",
+    5: "🤩"
+  };
+
   // =======================
-  // Rating storage (localStorage)
+  // Rating storage: remote + fallback local
   // =======================
-  function getRating(cafeId) {
-    const data = localStorage.getItem(cafeId);
-    if (!data) return { total: 0, votes: 0 };
-    return JSON.parse(data);
+  let remoteRatings = null; // { cafeId: { total, votes }, ... }
+
+  async function loadAllRatings() {
+    try {
+      const res = await fetch("/api/ratings");
+      if (!res.ok) throw new Error("Bad status");
+      remoteRatings = await res.json();
+    } catch (e) {
+      console.warn("Nu s-au putut încărca ratingurile globale, folosim doar localStorage.", e);
+      remoteRatings = null;
+    }
   }
 
-  function saveRating(cafeId, rating) {
-    const data = getRating(cafeId);
+  function getLocalRating(cafeId) {
+    const data = localStorage.getItem(cafeId);
+    if (!data) return { total: 0, votes: 0 };
+    try {
+      return JSON.parse(data);
+    } catch {
+      return { total: 0, votes: 0 };
+    }
+  }
+
+  function saveLocalRating(cafeId, rating) {
+    const data = getLocalRating(cafeId);
     data.total += rating;
     data.votes += 1;
     localStorage.setItem(cafeId, JSON.stringify(data));
   }
 
+  // Dată combinată: remote dacă există, altfel local
+  function getRatingData(cafeId) {
+    if (remoteRatings && remoteRatings[cafeId]) {
+      return remoteRatings[cafeId];
+    }
+    return getLocalRating(cafeId);
+  }
+
   function getAverage(cafeId) {
-    const data = getRating(cafeId);
-    if (data.votes === 0) return "Nu are rating";
-    return (data.total / data.votes).toFixed(1) + " ⭐";
+    const data = getRatingData(cafeId);
+    if (!data || data.votes === 0) return "Nu are rating";
+    const avg = (data.total / data.votes).toFixed(1);
+    return `${avg} ⭐ (${data.votes} voturi)`;
+  }
+
+  async function saveRatingGlobal(cafeId, rating) {
+    // salvăm și local, ca fallback
+    saveLocalRating(cafeId, rating);
+
+    try {
+      await fetch("/api/ratings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cafeId, rating })
+      });
+    } catch (e) {
+      console.warn("Nu s-a putut salva ratingul global, rămâne doar cel local.", e);
+    }
   }
 
   // =======================
-  // Modal rating (cu stele)
+  // Modal rating (cu 5 stele + emoji)
   // =======================
   let currentCafeId = null;
   let currentCafeName = null;
@@ -213,10 +270,20 @@
   const btnCancel      = document.getElementById("rating-cancel");
   const btnSubmit      = document.getElementById("rating-submit");
   const starElems      = document.querySelectorAll("#rating-stars .star");
+  const emojiElem      = document.getElementById("rating-emoji");
 
   function resetStars() {
     currentRating = null;
     starElems.forEach(s => s.classList.remove("active"));
+    emojiElem.textContent = "";
+  }
+
+  function updateEmoji() {
+    if (!currentRating) {
+      emojiElem.textContent = "";
+      return;
+    }
+    emojiElem.textContent = ratingEmojis[currentRating] || "";
   }
 
   function openRatingModal(cafeId, cafeName) {
@@ -244,24 +311,24 @@
         const sVal = parseInt(s.getAttribute("data-value"), 10);
         s.classList.toggle("active", sVal <= val);
       });
+      updateEmoji();
     });
   });
 
   btnCancel.addEventListener("click", closeRatingModal);
 
-  btnSubmit.addEventListener("click", () => {
+  btnSubmit.addEventListener("click", async () => {
     if (!currentCafeId) return;
 
-    if (!currentRating || currentRating < 1 || currentRating > 10) {
-      alert("Alege un număr de stele (1–10).");
+    if (!currentRating || currentRating < 1 || currentRating > 5) {
+      alert("Alege un număr de stele (1–5).");
       return;
     }
 
-    // aici poți înlocui cu fetch() către backend, când vei avea unul
-    saveRating(currentCafeId, currentRating);
+    await saveRatingGlobal(currentCafeId, currentRating);
     alert(`✅ Mulțumim! Ai dat ${currentRating} stele pentru ${currentCafeName}.`);
     closeRatingModal();
-    location.reload(); // reîmprospătăm popup-urile ca să afișeze media nouă
+    location.reload(); // reîmprospătăm, pentru a vedea media actualizată
   });
 
   // =======================
@@ -313,8 +380,11 @@
   // =======================
   // Init
   // =======================
-  document.addEventListener("DOMContentLoaded", function() {
-    // Telegram Web App setup
+  document.addEventListener("DOMContentLoaded", async function() {
+    // 1. încărcăm ratingurile globale (dacă API merge)
+    await loadAllRatings();
+
+    // 2. Telegram Web App setup
     const tg = window.Telegram && window.Telegram.WebApp;
     if (tg) {
       tg.expand();
@@ -326,7 +396,7 @@
       tg.MainButton.onClick(startScan);
     }
 
-    // Harta
+    // 3. Harta
     const map = L.map('map').setView([47.040, 28.85], 12.5);
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -335,7 +405,7 @@
       maxZoom: 19
     }).addTo(map);
 
-    // Markere cafenele
+    // 4. Markere cafenele
     cafes.forEach(cafe => {
       const avg = getAverage(cafe.id);
 
