@@ -1,17 +1,20 @@
 <!DOCTYPE html>
 <html lang="ro">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Beanly Map</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Telegram Web App JS -->
+  <!-- Telegram WebApp -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
 
-  <!-- Supabase JS (UMD) -->
+  <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>
 
   <style>
@@ -19,6 +22,7 @@
       margin: 0;
       padding: 0;
       height: 100%;
+      overflow: hidden;
       font-family: Arial, sans-serif;
     }
 
@@ -33,10 +37,10 @@
       top: 10px;
       left: 10px;
       z-index: 900;
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255, 255, 255, 0.9);
       padding: 6px 8px;
       border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       max-width: 170px;
       font-size: 11px;
       line-height: 1.3;
@@ -67,7 +71,7 @@
       font-size: 11px;
     }
 
-    /* ascundem butoanele + / - ale hărții */
+    /* Hide zoom buttons */
     .leaflet-control-zoom {
       display: none;
     }
@@ -77,131 +81,54 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.4);
-      z-index: 1100;
+      background: rgba(0,0,0,0.35);
+      z-index: 2000;
       justify-content: center;
       align-items: center;
     }
 
     #rating-modal {
-      background: #fff;
-      padding: 16px;
-      border-radius: 10px;
       width: 280px;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-    }
-
-    #rating-modal h3 {
-      margin-top: 0;
-      margin-bottom: 8px;
-      font-size: 18px;
-    }
-
-    #rating-modal p {
-      margin: 4px 0 10px;
-      font-size: 14px;
-    }
-
-    /* Stele */
-    #rating-stars {
-      display: flex;
-      gap: 4px;
-      margin-bottom: 6px;
-      justify-content: center;
+      background: white;
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
     }
 
     .star {
-      font-size: 24px;
-      color: #cccccc;
+      font-size: 26px;
       cursor: pointer;
-      user-select: none;
-      transition: transform 0.1s ease, color 0.1s ease;
+      color: #bbb;
     }
 
     .star.active {
       color: #f5b301;
-      transform: scale(1.05);
-    }
-
-    #rating-emoji {
-      text-align: center;
-      font-size: 22px;
-      margin-bottom: 10px;
-      min-height: 26px;
-    }
-
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-
-    button {
-      cursor: pointer;
-    }
-
-    .btn-primary {
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: none;
-      background: #000;
-      color: #fff;
-      font-size: 14px;
-    }
-
-    .btn-secondary {
-      padding: 6px 12px;
-      border-radius: 6px;
-      background: #f5f5f5;
-      border: 1px solid #aaa;
-      font-size: 14px;
-    }
-
-    .leaflet-popup-content-wrapper {
-      border-radius: 8px;
-    }
-
-    .popup button {
-      padding: 6px 10px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      background: #000;
-      color: #fff;
-      font-size: 13px;
-    }
-
-    .popup button[disabled] {
-      opacity: 0.5;
-      cursor: default;
-      background: #444;
     }
   </style>
 </head>
+
 <body>
 
 <div id="map"></div>
 <div id="leaderboard"></div>
 
-<!-- Modal rating -->
+<!-- Rating modal -->
 <div id="rating-modal-backdrop">
   <div id="rating-modal">
-    <h3 id="rating-title">Lasă un rating</h3>
-    <p id="rating-subtitle"></p>
+    <h3>Lasă un rating</h3>
+    <p id="rating-cafe-name"></p>
 
     <div id="rating-stars">
-      <span class="star" data-value="1">★</span>
-      <span class="star" data-value="2">★</span>
-      <span class="star" data-value="3">★</span>
-      <span class="star" data-value="4">★</span>
-      <span class="star" data-value="5">★</span>
+      <span class="star" data-val="1">★</span>
+      <span class="star" data-val="2">★</span>
+      <span class="star" data-val="3">★</span>
+      <span class="star" data-val="4">★</span>
+      <span class="star" data-val="5">★</span>
     </div>
 
-    <div id="rating-emoji"></div>
-
-    <div class="modal-actions">
-      <button id="rating-cancel" class="btn-secondary">Anulează</button>
-      <button id="rating-submit" class="btn-primary">Trimite</button>
+    <div style="padding-top: 10px; display:flex; justify-content:flex-end; gap:8px;">
+      <button id="cancelBtn">Anulează</button>
+      <button id="sendBtn">Trimite</button>
     </div>
   </div>
 </div>
@@ -210,360 +137,213 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-  // =======================
-  // CONFIG SUPABASE
-  // =======================
-  const SUPABASE_URL = "https://fmjzvkjirengslympwyy.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_Huzv6C0t7gw4UFgb_7Za0A_Ptj6hwu_";
+/* ---------------------------
+   CONFIG
+---------------------------- */
 
-  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  // MapTiler 
-const MAPTILER_KEY = "K2TXKYl91HXvMVDhjRcy "; 
+const MAPTILER_KEY = "K2TXKYl91HXvMVDhjRcy";
 
-  // =======================
-  // Date cafenele reale
-  // =======================
-  const cafes = [
-    { id: "coffee_drive",        name: "COFFEE DRIVE",        coords: [47.060133, 28.874532] },
-    { id: "coffee_stop",         name: "Coffee Stop",         coords: [47.066017, 28.856687] },
-    { id: "black_coffee_drive",  name: "Black Coffee Drive",  coords: [47.046993, 28.779928] },
-    { id: "flamingo_coffee",     name: "Flamingo Coffee",     coords: [47.061938, 28.848433] },
-    { id: "grand_coffee_place",  name: "Grand Coffee Place",  coords: [47.001321, 28.871157] }
-  ];
+const SUPABASE_URL = "https://fmjzvkjirengslympwyy.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_Huzv6C0t7gw4UFgb_7Za0A_Ptj6hwu_";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  const ratingEmojis = {
-    1: "😣",
-    2: "😕",
-    3: "😐",
-    4: "🙂",
-    5: "🤩"
-  };
+/* ---------------------------
+   CAFENELE
+---------------------------- */
 
-  // hartă + markere
-  let map = null;
-  const markers = {};
+const cafes = [
+  { id: "coffee_drive", name: "COFFEE DRIVE", coords: [47.060133, 28.874532] },
+  { id: "coffee_stop", name: "Coffee Stop", coords: [47.066017, 28.856687] },
+  { id: "black_coffee_drive", name: "Black Coffee Drive", coords: [47.046993, 28.779928] },
+  { id: "flamingo_coffee", name: "Flamingo Coffee", coords: [47.061938, 28.848433] },
+  { id: "grand_coffee_place", name: "Grand Coffee Place", coords: [47.001321, 28.871157] }
+];
 
-  // =======================
-  // Device ID
-  // =======================
-  function getOrCreateDeviceId() {
-    let id = localStorage.getItem("beanly_device_id");
-    if (!id) {
-      id = "dev_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
-      localStorage.setItem("beanly_device_id", id);
-    }
-    return id;
+/* ---------------------------
+   DEVICE ID
+---------------------------- */
+
+function getDeviceId() {
+  let id = localStorage.getItem("beanly_id");
+  if (!id) {
+    id = "dev_" + Math.random().toString(36).substring(2);
+    localStorage.setItem("beanly_id", id);
   }
-  const DEVICE_ID = getOrCreateDeviceId();
+  return id;
+}
+const DEVICE_ID = getDeviceId();
 
-  // =======================
-  // Ratinguri user local
-  // =======================
-  function getUserRatingsMap() {
-    const raw = localStorage.getItem("beanly_user_ratings");
-    if (!raw) return {};
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return {};
-    }
-  }
+/* ---------------------------
+   RATING STATE
+---------------------------- */
 
-  function setUserRatingsMap(mapObj) {
-    localStorage.setItem("beanly_user_ratings", JSON.stringify(mapObj));
-  }
+let globalRatings = {};
+let currentCafe = null;
+let currentRating = null;
 
-  function getUserRating(cafeId) {
-    const mapObj = getUserRatingsMap();
-    return typeof mapObj[cafeId] === "number" ? mapObj[cafeId] : null;
-  }
+/* ---------------------------
+   LOAD RATINGS FROM SUPABASE
+---------------------------- */
 
-  function hasUserRated(cafeId) {
-    return getUserRating(cafeId) !== null;
-  }
+async function loadRatings() {
+  const { data, error } = await sb.from("ratings").select("cafe_id, rating");
 
-  function registerUserRatingLocal(cafeId, rating) {
-    const mapObj = getUserRatingsMap();
-    mapObj[cafeId] = rating;
-    setUserRatingsMap(mapObj);
-  }
+  const agg = {};
+  (data || []).forEach(r => {
+    if (!agg[r.cafe_id]) agg[r.cafe_id] = { sum: 0, count: 0 };
+    agg[r.cafe_id].sum += r.rating;
+    agg[r.cafe_id].count++;
+  });
 
-  // =======================
-  // Ratinguri globale din Supabase
-  // =======================
-  let globalRatings = {}; // { cafeId: { avg, votes } }
-  const leaderboardEl = document.getElementById("leaderboard");
-
-  function buildLeaderboard() {
-    if (!leaderboardEl) return;
-
-    const items = cafes.map(cafe => {
-      const info = globalRatings[cafe.id];
-      return { id: cafe.id, name: cafe.name, info };
-    });
-
-    const rated = items.filter(it => it.info && it.info.votes > 0);
-
-    if (!rated.length) {
-      leaderboardEl.innerHTML = `
-        <h4>Top ☕</h4>
-        <div style="font-size:11px;color:#555;">Încă nu sunt ratinguri. Fii primul care votează!</div>
-      `;
-      return;
-    }
-
-    rated.sort((a, b) => b.info.avg - a.info.avg);
-    const top = rated.slice(0, 5);
-
-    let html = `<h4>Top ☕</h4><ul>`;
-    top.forEach(it => {
-      const avg = it.info.avg.toFixed(1);
-      const votes = it.info.votes;
-      html += `
-        <li data-id="${it.id}">
-          <span class="name">${it.name}</span><br>
-          <span class="stats">${avg} ⭐ · (${votes})</span>
-        </li>
-      `;
-    });
-    html += `</ul>`;
-
-    leaderboardEl.innerHTML = html;
-
-    const lis = leaderboardEl.querySelectorAll("li[data-id]");
-    lis.forEach(li => {
-      li.addEventListener("click", () => {
-        const id = li.getAttribute("data-id");
-        const cafe = cafes.find(c => c.id === id);
-        if (!cafe || !map) return;
-        map.setView(cafe.coords, 15);
-        const marker = markers[id];
-        if (marker) {
-          marker.openPopup();
-        }
-      });
-    });
-  }
-
-  async function loadGlobalRatings() {
-    try {
-      const { data, error } = await sb
-        .from("ratings")
-        .select("cafe_id, rating");
-
-      if (error) {
-        console.warn("Supabase select error:", error.message);
-        return;
-      }
-
-      const agg = {};
-      (data || []).forEach(row => {
-        const id = row.cafe_id;
-        const r = row.rating;
-        if (!agg[id]) {
-          agg[id] = { sum: 0, count: 0 };
-        }
-        agg[id].sum += r;
-        agg[id].count += 1;
-      });
-
-      const result = {};
-      Object.keys(agg).forEach(id => {
-        const { sum, count } = agg[id];
-        result[id] = {
-          avg: sum / count,
-          votes: count
-        };
-      });
-
-      globalRatings = result;
-      buildLeaderboard();
-    } catch (e) {
-      console.warn("Eroare la loadGlobalRatings:", e);
-    }
-  }
-
-  function getAverageText(cafeId) {
-    const info = globalRatings[cafeId];
-    if (!info || !info.votes) return "Nu are rating";
-    const avg = Number(info.avg).toFixed(1);
-    return `${avg} ⭐ (${info.votes} voturi)`;
-  }
-
-  async function sendRatingToServer(cafeId, rating) {
-    const payload = {
-      cafe_id: cafeId,
-      device_id: DEVICE_ID,
-      rating: rating,
+  globalRatings = {};
+  Object.keys(agg).forEach(id => {
+    globalRatings[id] = {
+      avg: agg[id].sum / agg[id].count,
+      votes: agg[id].count
     };
-
-    const { error } = await sb
-      .from("ratings")
-      .insert(payload);
-
-    if (error) {
-      if (error.message && error.message.includes("unique_cafe_device")) {
-        throw new Error("already-rated");
-      }
-      throw new Error("server-error: " + error.message);
-    }
-  }
-
-  // =======================
-  // Modal rating
-  // =======================
-  let currentCafeId = null;
-  let currentCafeName = null;
-  let currentRating = null;
-
-  const modalBackdrop  = document.getElementById("rating-modal-backdrop");
-  const ratingTitle    = document.getElementById("rating-title");
-  const ratingSubtitle = document.getElementById("rating-subtitle");
-  const btnCancel      = document.getElementById("rating-cancel");
-  const btnSubmit      = document.getElementById("rating-submit");
-  const starElems      = document.querySelectorAll("#rating-stars .star");
-  const emojiElem      = document.getElementById("rating-emoji");
-
-  function resetStars() {
-    currentRating = null;
-    starElems.forEach(s => s.classList.remove("active"));
-    emojiElem.textContent = "";
-  }
-
-  function updateEmoji() {
-    if (!currentRating) {
-      emojiElem.textContent = "";
-      return;
-    }
-    emojiElem.textContent = ratingEmojis[currentRating] || "";
-  }
-
-  function openRatingModal(cafeId, cafeName) {
-    if (hasUserRated(cafeId)) {
-      const r = getUserRating(cafeId);
-      alert(`Ai votat deja ${cafeName} cu ${r} ⭐ de pe acest telefon.`);
-      return;
-    }
-
-    currentCafeId = cafeId;
-    currentCafeName = cafeName;
-    ratingTitle.textContent = "Lasă un rating";
-    ratingSubtitle.textContent = cafeName;
-    resetStars();
-    modalBackdrop.style.display = "flex";
-  }
-
-  function closeRatingModal() {
-    modalBackdrop.style.display = "none";
-    currentCafeId = null;
-    currentCafeName = null;
-    currentRating = null;
-  }
-
-  starElems.forEach(star => {
-    star.addEventListener("click", () => {
-      const val = parseInt(star.getAttribute("data-value"), 10);
-      currentRating = val;
-      starElems.forEach(s => {
-        const sVal = parseInt(s.getAttribute("data-value"), 10);
-        s.classList.toggle("active", sVal <= val);
-      });
-      updateEmoji();
-    });
   });
 
-  btnCancel.addEventListener("click", closeRatingModal);
+  buildLeaderboard();
+}
 
-  btnSubmit.addEventListener("click", async () => {
-    if (!currentCafeId) return;
+/* ---------------------------
+   LEADERBOARD
+---------------------------- */
 
-    if (!currentRating || currentRating < 1 || currentRating > 5) {
-      alert("Alege un număr de stele (1–5).");
-      return;
-    }
+function buildLeaderboard() {
+  const box = document.getElementById("leaderboard");
 
-    try {
-      await sendRatingToServer(currentCafeId, currentRating);
-      registerUserRatingLocal(currentCafeId, currentRating);
+  const rated = cafes
+    .map(c => ({ ...c, info: globalRatings[c.id] }))
+    .filter(c => c.info)
+    .sort((a, b) => b.info.avg - a.info.avg)
+    .slice(0, 5);
 
-      alert(`✅ Mulțumim! Ai dat ${currentRating} stele pentru ${currentCafeName}.`);
+  if (!rated.length) {
+    box.innerHTML = `<h4>Top ☕</h4><div>Nu există ratinguri încă.</div>`;
+    return;
+  }
 
-      await loadGlobalRatings();
-      closeRatingModal();
-      location.reload();
-    } catch (e) {
-      if (e.message === "already-rated") {
-        const existing = getUserRating(currentCafeId);
-        if (existing) {
-          alert(`Ai votat deja ${currentCafeName} cu ${existing} ⭐ de pe acest telefon.`);
-        } else {
-          alert(`Ai votat deja ${currentCafeName} de pe acest device.`);
-        }
-      } else {
-        console.error(e);
-        alert("Eroare la server: " + (e.message || "necunoscută"));
-      }
-      closeRatingModal();
-    }
+  let html = `<h4>Top ☕</h4><ul>`;
+  rated.forEach(c => {
+    html += `
+      <li data-id="${c.id}">
+        <span class="name">${c.name}</span><br>
+        <span class="stats">${c.info.avg.toFixed(1)} ⭐ · (${c.info.votes})</span>
+      </li>
+    `;
   });
+  html += "</ul>";
 
-  // =======================
-  // Init
-  // =======================
-  document.addEventListener("DOMContentLoaded", async function() {
-    const tg = window.Telegram && window.Telegram.WebApp;
-    if (tg) {
-      tg.expand();
-      tg.MainButton.hide();
-    }
+  box.innerHTML = html;
 
-    await loadGlobalRatings();
-
-        map = L.map('map').setView([47.040, 28.85], 12.5);
-
-    L.tileLayer(
-      `https://api.maptiler.com/maps/navigation-day/256/{z}/{x}/{y}.png?key=${K2TXKYl91HXvMVDhjRcy}`,
-      {
-        maxZoom: 19,
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
-          'contributors & <a href="https://www.maptiler.com/">MapTiler</a>'
-      }
-    ).addTo(map);
-
-
-
-    cafes.forEach(cafe => {
-      const avgText = getAverageText(cafe.id);
-      const userRating = getUserRating(cafe.id);
-      const buttonLabel = userRating ? `Ai votat: ${userRating} ⭐` : "Lasă un rating";
-      const buttonDisabled = userRating ? 'disabled="disabled"' : "";
-
-      const marker = L.marker(cafe.coords).addTo(map)
-        .bindPopup(`
-          <div class="popup">
-            <b>${cafe.name}</b><br>
-            Rating: ${avgText}<br><br>
-            <button class="rate-btn" data-id="${cafe.id}" data-name="${cafe.name}" ${buttonDisabled}>
-              ${buttonLabel}
-            </button>
-          </div>
-        `);
-
-      markers[cafe.id] = marker;
-
-      marker.on('popupopen', (e) => {
-        const btn = e.popup._contentNode.querySelector('.rate-btn');
-        if (btn) {
-          btn.addEventListener('click', () => {
-            const id = btn.getAttribute("data-id");
-            const name = btn.getAttribute("data-name");
-            openRatingModal(id, name);
-          });
-        }
-      });
-    });
+  box.querySelectorAll("li").forEach(li => {
+    li.onclick = () => {
+      const cafe = cafes.find(c => c.id === li.dataset.id);
+      map.setView(cafe.coords, 15);
+      markers[cafe.id].openPopup();
+    };
   });
+}
+
+/* ---------------------------
+   SEND RATING
+---------------------------- */
+
+async function sendRating(id, rating) {
+  await sb.from("ratings").insert({
+    cafe_id: id,
+    device_id: DEVICE_ID,
+    rating
+  });
+}
+
+/* ---------------------------
+   INIT MAP
+---------------------------- */
+
+let map;
+const markers = {};
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const tg = window.Telegram?.WebApp;
+  tg && tg.expand();
+
+  await loadRatings();
+
+  map = L.map("map").setView([47.040, 28.85], 12.5);
+
+  /* ---------------------------
+     MAPTILER WAZE-LIKE STYLE
+  ---------------------------- */
+
+  L.tileLayer(
+    `https://api.maptiler.com/maps/navigation-day/256/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+    {
+      maxZoom: 19,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors'
+    }
+  ).addTo(map);
+
+  /* ---------------------------
+     MARKERS
+  ---------------------------- */
+
+  cafes.forEach(cafe => {
+    const marker = L.marker(cafe.coords).addTo(map);
+
+    marker.bindPopup(`
+      <b>${cafe.name}</b><br>
+      Rating: ${
+        globalRatings[cafe.id]
+          ? globalRatings[cafe.id].avg.toFixed(1) + " ⭐ (" + globalRatings[cafe.id].votes + ")"
+          : "Nu are rating"
+      }<br><br>
+      <button onclick="openModal('${cafe.id}')">Lasă rating</button>
+    `);
+
+    markers[cafe.id] = marker;
+  });
+});
+
+/* ---------------------------
+   MODAL
+---------------------------- */
+
+window.openModal = function (cafeId) {
+  currentCafe = cafeId;
+  document.getElementById("rating-cafe-name").innerText =
+    cafes.find(c => c.id === cafeId).name;
+
+  document.getElementById("rating-modal-backdrop").style.display = "flex";
+};
+
+document.getElementById("cancelBtn").onclick = () => {
+  document.getElementById("rating-modal-backdrop").style.display = "none";
+};
+
+document.querySelectorAll(".star").forEach(star => {
+  star.onclick = () => {
+    currentRating = parseInt(star.dataset.val);
+    document.querySelectorAll(".star").forEach(s =>
+      s.classList.toggle("active", parseInt(s.dataset.val) <= currentRating)
+    );
+  };
+});
+
+document.getElementById("sendBtn").onclick = async () => {
+  if (!currentRating) {
+    alert("Alege numărul de stele!");
+    return;
+  }
+
+  await sendRating(currentCafe, currentRating);
+  alert("Mulțumim!");
+
+  document.getElementById("rating-modal-backdrop").style.display = "none";
+  location.reload();
+};
 </script>
 
 </body>
