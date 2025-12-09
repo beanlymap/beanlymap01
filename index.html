@@ -285,13 +285,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   wheelDebounceTime: 40,
   wheelPxPerZoomLevel: 80,
 
-  // 🔥 ADĂUGAT — Limitele hărții
-  maxBounds: [
-    [85, -180],   // colțul stânga sus (Lat, Lng)
-    [-85, 180]    // colțul dreapta jos (Lat, Lng)
-  ],
-  maxBoundsViscosity: 0.8 // face „elastic” marginile
+  // ⛔ Limita maximă de zoom-out
+  minZoom: 3.2
 });
+
 
 
   /* ---------------------------
