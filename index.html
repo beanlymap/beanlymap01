@@ -104,10 +104,10 @@
     .star.active {
       color: #f5b301;
     }
-    .leaflet-tile {
-  image-rendering: auto;
-}
 
+    .leaflet-tile {
+      image-rendering: auto;
+    }
   </style>
 </head>
 
@@ -276,37 +276,33 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadRatings();
 
   map = L.map('map', {
-  center: [47.040, 28.85],
-  zoom: 12.5,
-  zoomSnap: 0.25,
-  zoomDelta: 0.5,
-  zoomAnimation: true,
-  markerZoomAnimation: true,
-  wheelDebounceTime: 40,
-  wheelPxPerZoomLevel: 80
-  minZoom: 2.3
-});
-
+    center: [47.040, 28.85],
+    zoom: 12.5,
+    zoomSnap: 0.25,
+    zoomDelta: 0.5,
+    zoomAnimation: true,
+    markerZoomAnimation: true,
+    wheelDebounceTime: 40,
+    wheelPxPerZoomLevel: 80,
+    minZoom: 2.3           // <- VIRGULA era problema
+  });
 
   /* ---------------------------
-     MAPTILER WAZE-LIKE STYLE
+     MAPTILER STYLE
   ---------------------------- */
 
-    L.tileLayer(
-  `https://api.maptiler.com/maps/streets-v4/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
-  {
-    maxZoom: 19,
-    tileSize: 512,
-    zoomOffset: -1,
-    detectRetina: true,
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
-      'contributors & <a href="https://www.maptiler.com/">MapTiler</a>'
-  }
-).addTo(map);
-
-
-
+  L.tileLayer(
+    `https://api.maptiler.com/maps/streets-v4/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+    {
+      maxZoom: 19,
+      tileSize: 512,
+      zoomOffset: -1,
+      detectRetina: true,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
+        'contributors & <a href="https://www.maptiler.com/">MapTiler</a>'
+    }
+  ).addTo(map);
 
   /* ---------------------------
      MARKERS
