@@ -37,18 +37,20 @@
       top: 10px;
       left: 10px;
       z-index: 900;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(15, 23, 42, 0.82); /* gri-închis translucid */
       padding: 6px 8px;
       border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.35);
       max-width: 170px;
       font-size: 11px;
       line-height: 1.3;
+      color: #e5e7eb;
     }
 
     #leaderboard h4 {
       margin: 0 0 4px;
       font-size: 12px;
+      font-weight: 600;
     }
 
     #leaderboard ul {
@@ -60,15 +62,20 @@
     #leaderboard li {
       margin-bottom: 4px;
       cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     #leaderboard li span.name {
-      font-weight: 600;
+      font-weight: 500;
     }
 
     #leaderboard li span.stats {
-      color: #555;
+      color: #9ca3af;
       font-size: 11px;
+      margin-left: 6px;
+      white-space: nowrap;
     }
 
     /* Buton schimbare temă (zi/noapte) */
@@ -80,11 +87,12 @@
       width: 34px;
       height: 34px;
       border-radius: 999px;
-      background: rgba(255,255,255,0.96);
+      background: rgba(15, 23, 42, 0.9); /* gri-închis translucid */
+      color: #e5e7eb;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 10px rgba(15,23,42,0.25);
+      box-shadow: 0 4px 10px rgba(15,23,42,0.35);
       font-size: 18px;
       cursor: pointer;
       user-select: none;
@@ -93,17 +101,18 @@
     /* Buton "locația mea" */
     #locate-btn {
       position: absolute;
-      bottom: 20px;
+      bottom: 80px; /* mutat mai sus */
       right: 10px;
       z-index: 950;
       width: 36px;
       height: 36px;
       border-radius: 999px;
-      background: rgba(255,255,255,0.96);
+      background: rgba(15, 23, 42, 0.9);
+      color: #e5e7eb;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 10px rgba(15,23,42,0.25);
+      box-shadow: 0 4px 10px rgba(15,23,42,0.35);
       font-size: 18px;
       cursor: pointer;
       user-select: none;
@@ -129,10 +138,11 @@
 
     #rating-modal {
       width: 280px;
-      background: white;
+      background: rgba(15, 23, 42, 0.95); /* gri-închis translucid */
+      color: #e5e7eb;
       border-radius: 10px;
       padding: 16px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
     }
 
     #rating-modal h3 {
@@ -155,7 +165,7 @@
     .star {
       font-size: 26px;
       cursor: pointer;
-      color: #bbb;
+      color: #6b7280;
       user-select: none;
     }
 
@@ -201,6 +211,26 @@
       border-top: 8px solid #ffbf69;
       filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
     }
+
+    /* Butoane din modal */
+    #rating-modal button {
+      border-radius: 6px;
+      border: none;
+      padding: 6px 10px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    #cancelBtn {
+      background: rgba(31,41,55,0.9);
+      color: #e5e7eb;
+      border: 1px solid #4b5563;
+    }
+
+    #sendBtn {
+      background: #f9fafb;
+      color: #111827;
+    }
   </style>
 </head>
 
@@ -214,7 +244,7 @@
 <!-- Rating modal -->
 <div id="rating-modal-backdrop">
   <div id="rating-modal">
-    <h3>Lasă un rating</h3>
+    <h3>Lasă un review</h3>
     <p id="rating-cafe-name"></p>
 
     <div id="rating-stars">
@@ -298,7 +328,7 @@ function getInitialTheme() {
 let currentTheme = getInitialTheme();
 
 /* ---------------------------
-   LOAD RATINGS FROM SUPABASE
+   LOAD REVIEWS FROM SUPABASE
 ---------------------------- */
 
 async function loadRatings() {
@@ -315,7 +345,7 @@ async function loadRatings() {
   Object.keys(agg).forEach(id => {
     globalRatings[id] = {
       avg: agg[id].sum / agg[id].count,
-      votes: agg[id].count
+      reviews: agg[id].count
     };
   });
 
@@ -336,16 +366,17 @@ function buildLeaderboard() {
     .slice(0, 5);
 
   if (!rated.length) {
-    box.innerHTML = `<h4>Top ☕</h4><div>Nu există ratinguri încă.</div>`;
+    box.innerHTML = `<h4>Top ☕</h4><div>Nu există reviews încă.</div>`;
     return;
   }
 
   let html = `<h4>Top ☕</h4><ul>`;
   rated.forEach(c => {
+    const avg = c.info.avg.toFixed(1);
     html += `
       <li data-id="${c.id}">
-        <span class="name">${c.name}</span><br>
-        <span class="stats">${c.info.avg.toFixed(1)} ⭐ · (${c.info.votes})</span>
+        <span class="name">${c.name}</span>
+        <span class="stats">${avg} ⭐</span>
       </li>
     `;
   });
@@ -357,7 +388,7 @@ function buildLeaderboard() {
     li.onclick = () => {
       const cafe = cafes.find(c => c.id === li.dataset.id);
       if (!cafe || !map) return;
-      map.setView(cafe.coords, 15);
+      map.setView(cafe.coords, 16, { animate: true }); // zoom mai aproape
       if (markers[cafe.id]) {
         markers[cafe.id].openPopup();
       }
@@ -366,7 +397,7 @@ function buildLeaderboard() {
 }
 
 /* ---------------------------
-   SEND RATING
+   SEND REVIEW
 ---------------------------- */
 
 async function sendRating(id, rating) {
@@ -544,16 +575,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   ---------------------------- */
 
   cafes.forEach(cafe => {
+    const info = globalRatings[cafe.id];
+    const summary = info
+      ? `${info.avg.toFixed(1)} ⭐ · ${info.reviews} reviews`
+      : "No reviews yet";
+
     const marker = L.marker(cafe.coords, { icon: beanlyIcon }).addTo(map);
 
     marker.bindPopup(`
       <b>${cafe.name}</b><br>
-      Rating: ${
-        globalRatings[cafe.id]
-          ? globalRatings[cafe.id].avg.toFixed(1) + " ⭐ (" + globalRatings[cafe.id].votes + ")"
-          : "Nu are rating"
-      }<br><br>
-      <button onclick="openModal('${cafe.id}')">Lasă rating</button>
+      ${summary}<br><br>
+      <button onclick="openModal('${cafe.id}')">Lasă un review</button>
     `);
 
     markers[cafe.id] = marker;
@@ -595,17 +627,17 @@ document.getElementById("sendBtn").onclick = async () => {
 
   try {
     await sendRating(currentCafe, currentRating);
-    alert("Mulțumim!");
+    alert("Mulțumim pentru review!");
 
     document.getElementById("rating-modal-backdrop").style.display = "none";
     currentRating = null;
     document.querySelectorAll(".star").forEach(s => s.classList.remove("active"));
 
-    // Reîncarcăm pagina ca să se actualizeze ratingurile și leaderboard-ul
+    // Reîncarcăm pagina ca să se actualizeze reviews și leaderboard-ul
     location.reload();
   } catch (e) {
     console.error(e);
-    alert("A apărut o eroare la trimiterea ratingului.");
+    alert("A apărut o eroare la trimiterea review-ului.");
   }
 };
 </script>
