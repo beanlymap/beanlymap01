@@ -131,6 +131,37 @@
       cursor: default;
       background: #444;
     }
+        .rating-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+      font-size: 13px;
+    }
+
+    .rating-stars {
+      color: #f5b301;
+      font-size: 16px;
+      letter-spacing: 1px;
+    }
+
+    .rating-votes {
+      color: #666;
+      font-size: 12px;
+    }
+
+    .user-vote {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #333;
+    }
+
+    .user-vote .stars {
+      color: #f5b301;
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+
   </style>
 </head>
 <body>
@@ -282,11 +313,21 @@ const SUPABASE_ANON_KEY = "sb_publishable_Huzv6C0t7gw4UFgb_7Za0A_Ptj6hwu_";
     }
   }
 
-  function getAverageText(cafeId) {
+    function getAverageInfo(cafeId) {
     const info = globalRatings[cafeId];
-    if (!info || !info.votes) return "Nu are rating";
-    const avg = Number(info.avg).toFixed(1);
-    return `${avg} ⭐ (${info.votes} voturi)`;
+    if (!info || !info.votes) return null;
+    return info;
+  }
+
+  function makeStars(value, max = 5) {
+    const full = Math.round(value); // rotunjim la cel mai apropiat număr întreg
+    let s = "";
+    for (let i = 1; i <= max; i++) {
+      s += i <= full ? "★" : "☆";
+    }
+    return s;
+  }
+
   }
 
   async function sendRatingToServer(cafeId, rating) {
@@ -426,17 +467,41 @@ const SUPABASE_ANON_KEY = "sb_publishable_Huzv6C0t7gw4UFgb_7Za0A_Ptj6hwu_";
       maxZoom: 19
     }).addTo(map);
 
-    cafes.forEach(cafe => {
-      const avgText = getAverageText(cafe.id);
+        cafes.forEach(cafe => {
+      const info = getAverageInfo(cafe.id);
       const userRating = getUserRating(cafe.id);
+
+      let ratingHtml;
+      if (!info) {
+        ratingHtml = `
+          <div class="rating-row">
+            <div class="rating-votes">Nu are rating</div>
+          </div>
+        `;
+      } else {
+        const stars = makeStars(info.avg);
+        ratingHtml = `
+          <div class="rating-row">
+            <div class="rating-stars">${stars}</div>
+            <div class="rating-votes">${info.votes} voturi</div>
+          </div>
+        `;
+      }
+
+      const userVoteHtml = userRating
+        ? `<div class="user-vote">Votul tău: <span class="stars">${makeStars(userRating)}</span></div>`
+        : "";
+
       const buttonLabel = userRating ? `Ai votat: ${userRating} ⭐` : "Lasă un rating";
       const buttonDisabled = userRating ? 'disabled="disabled"' : "";
 
       const marker = L.marker(cafe.coords).addTo(map)
         .bindPopup(`
           <div class="popup">
-            <b>${cafe.name}</b><br>
-            Rating: ${avgText}<br><br>
+            <b>${cafe.name}</b>
+            ${ratingHtml}
+            ${userVoteHtml}
+            <br>
             <button class="rate-btn" data-id="${cafe.id}" data-name="${cafe.name}" ${buttonDisabled}>
               ${buttonLabel}
             </button>
@@ -454,7 +519,7 @@ const SUPABASE_ANON_KEY = "sb_publishable_Huzv6C0t7gw4UFgb_7Za0A_Ptj6hwu_";
         }
       });
     });
-  });
+
 </script>
 
 </body>
