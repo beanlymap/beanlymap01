@@ -184,10 +184,21 @@
   };
 
   // =======================
-  // Rating local: 1 vot per device per cafenea
+  // Device ID (pentru a limita 1 vot / device / cafenea la DB)
   // =======================
+  function getOrCreateDeviceId() {
+    let id = localStorage.getItem("beanly_device_id");
+    if (!id) {
+      id = "dev_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem("beanly_device_id", id);
+    }
+    return id;
+  }
+  const DEVICE_ID = getOrCreateDeviceId();
 
-  // structura: { [cafeId]: rating }
+  // =======================
+  // Maparea ratingurilor userului (numai pentru UI)
+  // =======================
   function getUserRatingsMap() {
     const raw = localStorage.getItem("beanly_user_ratings");
     if (!raw) return {};
@@ -196,6 +207,10 @@
     } catch {
       return {};
     }
+  }
+
+  function setUserRatingsMap(map) {
+    localStorage.setItem("beanly_user_ratings", JSON.stringify(map));
   }
 
   function getUserRating(cafeId) {
@@ -207,41 +222,62 @@
     return getUserRating(cafeId) !== null;
   }
 
-  // structura agregată: { total, votes } pentru fiecare cafenea, pe acest device
-  function getRatingAgg(cafeId) {
-    const raw = localStorage.getItem("agg_" + cafeId);
-    if (!raw) return { total: 0, votes: 0 };
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return { total: 0, votes: 0 };
-    }
-  }
-
-  function saveRatingAgg(cafeId, rating) {
-    const agg = getRatingAgg(cafeId);
-    agg.total += rating;
-    agg.votes += 1;
-    localStorage.setItem("agg_" + cafeId, JSON.stringify(agg));
-  }
-
-  // Înregistrăm ratingul userului: doar dacă NU a votat înainte
-  function registerUserRating(cafeId, rating) {
+  function registerUserRatingLocal(cafeId, rating) {
     const map = getUserRatingsMap();
-    if (typeof map[cafeId] === "number") {
-      return false; // deja a votat
-    }
     map[cafeId] = rating;
-    localStorage.setItem("beanly_user_ratings", JSON.stringify(map));
-    saveRatingAgg(cafeId, rating);
-    return true;
+    setUserRatingsMap(map);
+  }
+
+  // =======================
+  // Ratinguri globale venite din Supabase
+  // =======================
+  let globalRatings = {}; // { cafeId: { avg, votes } }
+
+  async function loadGlobalRatings() {
+    try {
+      const res = await fetch("/api/ratings");
+      if (!res.ok) {
+        console.warn("Nu s-au putut încărca ratingurile globale:", await res.text());
+        return;
+      }
+      globalRatings = await res.json();
+    } catch (e) {
+      console.warn("Eroare la fetch /api/ratings:", e);
+    }
   }
 
   function getAverageText(cafeId) {
-    const agg = getRatingAgg(cafeId);
-    if (!agg || agg.votes === 0) return "Nu are rating";
-    const avg = (agg.total / agg.votes).toFixed(1);
-    return `${avg} ⭐ (${agg.votes} voturi pe acest dispozitiv)`;
+    const info = globalRatings[cafeId];
+    if (!info || !info.votes) return "Nu are rating";
+    const avg = Number(info.avg).toFixed(1);
+    return `${avg} ⭐ (${info.votes} voturi)`;
+  }
+
+  async function sendRatingToServer(cafeId, rating) {
+    const payload = {
+      cafeId,
+      rating,
+      deviceId: DEVICE_ID,
+    };
+
+    const res = await fetch("/api/ratings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.status === 409) {
+      // Already rated
+      throw new Error("already-rated");
+    }
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error("server-error: " + text);
+    }
+
+    const inserted = await res.json();
+    return inserted;
   }
 
   // =======================
@@ -274,7 +310,7 @@
   }
 
   function openRatingModal(cafeId, cafeName) {
-    // dacă userul a votat deja, nu mai deschidem modal
+    // dacă știm deja local că userul a votat, nu mai deschidem modal
     if (hasUserRated(cafeId)) {
       const r = getUserRating(cafeId);
       alert(`Ai votat deja ${cafeName} cu ${r} ⭐ de pe acest telefon.`);
@@ -311,7 +347,7 @@
 
   btnCancel.addEventListener("click", closeRatingModal);
 
-  btnSubmit.addEventListener("click", () => {
+  btnSubmit.addEventListener("click", async () => {
     if (!currentCafeId) return;
 
     if (!currentRating || currentRating < 1 || currentRating > 5) {
@@ -319,32 +355,51 @@
       return;
     }
 
-    const ok = registerUserRating(currentCafeId, currentRating);
-    if (!ok) {
-      const r = getUserRating(currentCafeId);
-      alert(`Ai votat deja ${currentCafeName} cu ${r} ⭐ de pe acest telefon.`);
-      closeRatingModal();
-      return;
-    }
+    try {
+      // trimitem la server
+      await sendRatingToServer(currentCafeId, currentRating);
 
-    alert(`✅ Mulțumim! Ai dat ${currentRating} stele pentru ${currentCafeName}.`);
-    closeRatingModal();
-    location.reload(); // reîmprospătăm, pentru a vedea media actualizată în popup
+      // marcam local ca a votat
+      registerUserRatingLocal(currentCafeId, currentRating);
+
+      alert(`✅ Mulțumim! Ai dat ${currentRating} stele pentru ${currentCafeName}.`);
+
+      // după vot, re-încărcăm ratingurile globale și UI
+      await loadGlobalRatings();
+      closeRatingModal();
+      location.reload();
+    } catch (e) {
+      if (e.message === "already-rated") {
+        const existing = getUserRating(currentCafeId);
+        if (existing) {
+          alert(`Ai votat deja ${currentCafeName} cu ${existing} ⭐ de pe acest telefon.`);
+        } else {
+          alert(`Ai votat deja ${currentCafeName} de pe acest device.`);
+        }
+      } else {
+        console.error(e);
+        alert("A apărut o eroare la salvarea ratingului. Încearcă din nou.");
+      }
+      closeRatingModal();
+    }
   });
 
   // =======================
   // Init
   // =======================
-  document.addEventListener("DOMContentLoaded", function() {
+  document.addEventListener("DOMContentLoaded", async function() {
     // Telegram Web App setup
     const tg = window.Telegram && window.Telegram.WebApp;
     if (tg) {
       tg.expand();
-      // ascundem MainButton, nu mai folosim QR
+      // nu folosim MainButton acum
       tg.MainButton.hide();
     }
 
-    // Harta
+    // 1. încărcăm ratingurile globale
+    await loadGlobalRatings();
+
+    // 2. Harta
     const map = L.map('map').setView([47.040, 28.85], 12.5);
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -353,7 +408,7 @@
       maxZoom: 19
     }).addTo(map);
 
-    // Markere cafenele
+    // 3. Markere cafenele
     cafes.forEach(cafe => {
       const avgText = getAverageText(cafe.id);
       const userRating = getUserRating(cafe.id);
