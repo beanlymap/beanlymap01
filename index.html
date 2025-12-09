@@ -277,14 +277,16 @@ document.addEventListener("DOMContentLoaded", async () => {
      MAPTILER WAZE-LIKE STYLE
   ---------------------------- */
 
-  L.tileLayer(
-    `https://api.maptiler.com/maps/navigation-day/256/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+    L.tileLayer(
+    `https://api.maptiler.com/maps/streets-v4/256/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
     {
       maxZoom: 19,
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors'
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
+        'contributors & <a href="https://www.maptiler.com/">MapTiler</a>'
     }
   ).addTo(map);
+
 
   /* ---------------------------
      MARKERS
