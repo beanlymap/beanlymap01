@@ -67,12 +67,23 @@
       font-size: 14px;
     }
 
-    #rating-input {
-      width: 100%;
-      padding: 6px 8px;
-      font-size: 16px;
+    /* Stele */
+    #rating-stars {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
       margin-bottom: 10px;
-      box-sizing: border-box;
+    }
+
+    .star {
+      font-size: 22px;
+      color: #cccccc;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .star.active {
+      color: #f5b301;
     }
 
     .modal-actions {
@@ -127,13 +138,21 @@
   <div id="rating-modal">
     <h3 id="rating-title">Lasă un rating</h3>
     <p id="rating-subtitle"></p>
-    <input
-      id="rating-input"
-      type="number"
-      min="1"
-      max="10"
-      placeholder="De la 1 la 10"
-    />
+
+    <!-- stele 1–10 -->
+    <div id="rating-stars">
+      <span class="star" data-value="1">★</span>
+      <span class="star" data-value="2">★</span>
+      <span class="star" data-value="3">★</span>
+      <span class="star" data-value="4">★</span>
+      <span class="star" data-value="5">★</span>
+      <span class="star" data-value="6">★</span>
+      <span class="star" data-value="7">★</span>
+      <span class="star" data-value="8">★</span>
+      <span class="star" data-value="9">★</span>
+      <span class="star" data-value="10">★</span>
+    </div>
+
     <div class="modal-actions">
       <button id="rating-cancel" class="btn-secondary">Anulează</button>
       <button id="rating-submit" class="btn-primary">Trimite</button>
@@ -182,50 +201,67 @@
   }
 
   // =======================
-  // Modal rating
+  // Modal rating (cu stele)
   // =======================
   let currentCafeId = null;
   let currentCafeName = null;
+  let currentRating = null;
 
   const modalBackdrop  = document.getElementById("rating-modal-backdrop");
   const ratingTitle    = document.getElementById("rating-title");
   const ratingSubtitle = document.getElementById("rating-subtitle");
-  const ratingInput    = document.getElementById("rating-input");
   const btnCancel      = document.getElementById("rating-cancel");
   const btnSubmit      = document.getElementById("rating-submit");
+  const starElems      = document.querySelectorAll("#rating-stars .star");
+
+  function resetStars() {
+    currentRating = null;
+    starElems.forEach(s => s.classList.remove("active"));
+  }
 
   function openRatingModal(cafeId, cafeName) {
     currentCafeId = cafeId;
     currentCafeName = cafeName;
     ratingTitle.textContent = "Lasă un rating";
     ratingSubtitle.textContent = cafeName;
-    ratingInput.value = "";
+    resetStars();
     modalBackdrop.style.display = "flex";
-    ratingInput.focus();
   }
 
   function closeRatingModal() {
     modalBackdrop.style.display = "none";
     currentCafeId = null;
     currentCafeName = null;
+    currentRating = null;
   }
+
+  // click pe stele
+  starElems.forEach(star => {
+    star.addEventListener("click", () => {
+      const val = parseInt(star.getAttribute("data-value"), 10);
+      currentRating = val;
+      starElems.forEach(s => {
+        const sVal = parseInt(s.getAttribute("data-value"), 10);
+        s.classList.toggle("active", sVal <= val);
+      });
+    });
+  });
 
   btnCancel.addEventListener("click", closeRatingModal);
 
   btnSubmit.addEventListener("click", () => {
     if (!currentCafeId) return;
-    let value = parseInt(ratingInput.value, 10);
 
-    if (!isNaN(value) && value >= 1 && value <= 10) {
-      // aici poți înlocui cu fetch() către backend, când vei avea unul
-      saveRating(currentCafeId, value);
-      alert(`✅ Mulțumim! Ai dat ${value} pentru ${currentCafeName}.`);
-      closeRatingModal();
-      // momentan reîncărcăm pagina ca să se recalculeze media în popup
-      location.reload();
-    } else {
-      alert("❌ Rating invalid. Introdu un număr între 1 și 10.");
+    if (!currentRating || currentRating < 1 || currentRating > 10) {
+      alert("Alege un număr de stele (1–10).");
+      return;
     }
+
+    // aici poți înlocui cu fetch() către backend, când vei avea unul
+    saveRating(currentCafeId, currentRating);
+    alert(`✅ Mulțumim! Ai dat ${currentRating} stele pentru ${currentCafeName}.`);
+    closeRatingModal();
+    location.reload(); // reîmprospătăm popup-urile ca să afișeze media nouă
   });
 
   // =======================
