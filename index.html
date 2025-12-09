@@ -90,6 +90,25 @@
       user-select: none;
     }
 
+    /* Buton "locația mea" */
+    #locate-btn {
+      position: absolute;
+      bottom: 20px;
+      right: 10px;
+      z-index: 950;
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.96);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(15,23,42,0.25);
+      font-size: 18px;
+      cursor: pointer;
+      user-select: none;
+    }
+
     /* Zoom buttons: ascunse pe telefon, vizibile pe desktop */
     @media (max-width: 768px) {
       .leaflet-control-zoom {
@@ -190,6 +209,7 @@
 <div id="map"></div>
 <div id="leaderboard"></div>
 <div id="theme-toggle" title="Schimbă tema">🌙</div>
+<div id="locate-btn" title="Locația mea">📍</div>
 
 <!-- Rating modal -->
 <div id="rating-modal-backdrop">
@@ -364,6 +384,7 @@ async function sendRating(id, rating) {
 let map;
 const markers = {};
 let dayLayer, nightLayer;
+let userMarker = null;
 
 // Marker Beanly personalizat (divIcon)
 const beanlyIcon = L.divIcon({
@@ -387,6 +408,55 @@ function applyTheme() {
     toggle.textContent = "🌙";
   }
 }
+
+/* ---------------------------
+   GEOLOCATION
+---------------------------- */
+
+function locateUser() {
+  if (!navigator.geolocation) {
+    alert("Acest dispozitiv nu suportă geolocalizare.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      const latlng = [lat, lng];
+
+      if (!map) return;
+
+      if (!userMarker) {
+        userMarker = L.circleMarker(latlng, {
+          radius: 8,
+          color: "#2563eb",
+          fillColor: "#3b82f6",
+          fillOpacity: 0.9
+        }).addTo(map);
+      } else {
+        userMarker.setLatLng(latlng);
+      }
+
+      map.setView(latlng, 15);
+    },
+    (err) => {
+      let msg = "Nu am putut obține locația.";
+      if (err.code === err.PERMISSION_DENIED) {
+        msg = "Nu ai permis accesul la locație.";
+      }
+      alert(msg);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000
+    }
+  );
+}
+
+/* ---------------------------
+   INIT
+---------------------------- */
 
 document.addEventListener("DOMContentLoaded", async () => {
   const tg = window.Telegram?.WebApp;
@@ -435,7 +505,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   );
 
-  // LAYER NIGHT (dark style - Waze-like)
+  // LAYER NIGHT (dark style)
   nightLayer = L.tileLayer(
     `https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
     {
@@ -461,6 +531,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       localStorage.setItem(THEME_KEY, currentTheme);
       applyTheme();
     });
+  }
+
+  // buton "locația mea"
+  const locateBtn = document.getElementById("locate-btn");
+  if (locateBtn) {
+    locateBtn.addEventListener("click", locateUser);
   }
 
   /* ---------------------------
