@@ -24,37 +24,6 @@
       height: 100vh;
     }
 
-    #scanner {
-      position: absolute;
-      top: 50px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 300px;
-      height: 300px;
-      display: none;
-      z-index: 1000;
-      border: 2px solid #000;
-      background: #000;
-    }
-
-    #scanner-close {
-      position: absolute;
-      top: 55px;
-      right: 10px;
-      z-index: 1001;
-      display: none;
-      background: rgba(0,0,0,0.7);
-      color: #fff;
-      border: none;
-      border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      cursor: pointer;
-      font-size: 18px;
-      line-height: 30px;
-      text-align: center;
-    }
-
     /* Modal rating */
     #rating-modal-backdrop {
       display: none;
@@ -164,8 +133,6 @@
 <body>
 
 <div id="map"></div>
-<div id="scanner"></div>
-<button id="scanner-close">✕</button>
 
 <!-- Modal rating -->
 <div id="rating-modal-backdrop">
@@ -194,9 +161,6 @@
 
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<!-- HTML5 QR Scanner -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
 
 <script>
   // =======================
@@ -243,7 +207,7 @@
     return getUserRating(cafeId) !== null;
   }
 
-  // structura agregată: local, de forma { total, votes } pentru fiecare cafenea
+  // structura agregată: { total, votes } pentru fiecare cafenea, pe acest device
   function getRatingAgg(cafeId) {
     const raw = localStorage.getItem("agg_" + cafeId);
     if (!raw) return { total: 0, votes: 0 };
@@ -369,91 +333,6 @@
   });
 
   // =======================
-  // QR Scanner (cu buton de închidere)
-  // =======================
-  let qrScannerInstance = null;
-  const scannerDiv = document.getElementById("scanner");
-  const scannerCloseBtn = document.getElementById("scanner-close");
-
-  function showScannerUI() {
-    scannerDiv.style.display = "block";
-    scannerCloseBtn.style.display = "block";
-  }
-
-  async function hideScannerUI() {
-    scannerDiv.style.display = "none";
-    scannerCloseBtn.style.display = "none";
-  }
-
-  async function stopScan() {
-    if (qrScannerInstance) {
-      try {
-        await qrScannerInstance.stop();
-      } catch (e) {
-        console.warn("Eroare la stop scanner:", e);
-      }
-    }
-    await hideScannerUI();
-  }
-
-  scannerCloseBtn.addEventListener("click", () => {
-    stopScan();
-  });
-
-  function startScan() {
-    showScannerUI();
-
-    if (!qrScannerInstance) {
-      qrScannerInstance = new Html5Qrcode("scanner");
-    }
-
-    qrScannerInstance
-      .start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        (decodedText) => {
-          // am găsit codul
-          stopScan().then(() => {
-            handleRatingFromQr(decodedText);
-          });
-        },
-        (errorMessage) => {
-          // erori de scanare repetate, le ignorăm
-        }
-      )
-      .catch((err) => {
-        console.error("Eroare la pornirea scannerului:", err);
-        alert("Nu s-a putut porni camera. Verifică permisiunile.");
-        hideScannerUI();
-      });
-  }
-
-  function handleRatingFromQr(decodedText) {
-    // ideal: QR-ul conține ID-ul cafenelei (ex: "coffee_drive")
-    // dacă ai QR cu URL, putem încerca să extragem id-ul din query (TODO mai târziu)
-    const trimmed = decodedText.trim();
-
-    let cafe =
-      cafes.find(c => c.id === trimmed) ||
-      cafes.find(c => c.name.toLowerCase() === trimmed.toLowerCase());
-
-    if (!cafe && trimmed.includes("cafeId=")) {
-      const params = new URLSearchParams(trimmed.split("?")[1] || trimmed.split("#")[1] || "");
-      const cid = params.get("cafeId");
-      if (cid) {
-        cafe = cafes.find(c => c.id === cid);
-      }
-    }
-
-    if (!cafe) {
-      alert("QR necunoscut. Verifică dacă codul este corect.");
-      return;
-    }
-
-    openRatingModal(cafe.id, cafe.name);
-  }
-
-  // =======================
   // Init
   // =======================
   document.addEventListener("DOMContentLoaded", function() {
@@ -461,12 +340,8 @@
     const tg = window.Telegram && window.Telegram.WebApp;
     if (tg) {
       tg.expand();
-      tg.MainButton.setParams({
-        text: "📷 Scanează QR",
-        color: "#000000"
-      });
-      tg.MainButton.show();
-      tg.MainButton.onClick(startScan);
+      // ascundem MainButton, nu mai folosim QR
+      tg.MainButton.hide();
     }
 
     // Harta
