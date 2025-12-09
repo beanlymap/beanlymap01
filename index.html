@@ -285,9 +285,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   wheelDebounceTime: 40,
   wheelPxPerZoomLevel: 80,
 
-  // ⛔ Limita maximă de zoom-out
-  minZoom: 3.2
+  // zoom-out maxim (cum ți-a plăcut acum)
+  minZoom: 3.2,
+
+  // ⛔ NU mai lăsăm userul să iasă din glob
+  maxBounds: [
+    [85, -180],   // nord-vest
+    [-85, 180]    // sud-est
+  ],
+  maxBoundsViscosity: 1.0,  // „elastic” la margine
+  worldCopyJump: false      // nu mai sare în copia următoare a lumii
 });
+
 
 
 
@@ -296,17 +305,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   ---------------------------- */
 
   L.tileLayer(
-    `https://api.maptiler.com/maps/streets-v4/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
-    {
-      maxZoom: 19,
-      tileSize: 512,
-      zoomOffset: -1,
-      detectRetina: true,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
-        'contributors & <a href="https://www.maptiler.com/">MapTiler</a>'
-    }
-  ).addTo(map);
+  `https://api.maptiler.com/maps/streets-v4/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
+  {
+    maxZoom: 19,
+    tileSize: 512,
+    zoomOffset: -1,
+    detectRetina: true,
+    noWrap: true,    // ⛔ nu mai repeta harta în lateral
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
+      'contributors & <a href="https://www.maptiler.com/">MapTiler</a>'
+  }
+).addTo(map);
+
 
   /* ---------------------------
      MARKERS
