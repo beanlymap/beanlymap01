@@ -11,6 +11,9 @@
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
+  <!-- Supabase JS (UMD) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>
+
   <style>
     html, body {
       margin: 0;
@@ -164,6 +167,15 @@
 
 <script>
   // =======================
+  // CONFIG SUPABASE
+  // =======================
+  const SUPABASE_URL = "https://_____TROACA_URLUL_TAU_____.supabase.co"; // TODO: pune aici Project URL
+  const SUPABASE_ANON_KEY = "sb-publishable-_________"; // TODO: pune aici Publishable key (anon)
+
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // =======================
   // Date cafenele reale
   // =======================
   const cafes = [
@@ -184,7 +196,7 @@
   };
 
   // =======================
-  // Device ID (pentru a limita 1 vot / device / cafenea la DB)
+  // Device ID
   // =======================
   function getOrCreateDeviceId() {
     let id = localStorage.getItem("beanly_device_id");
@@ -197,7 +209,7 @@
   const DEVICE_ID = getOrCreateDeviceId();
 
   // =======================
-  // Maparea ratingurilor userului (numai pentru UI)
+  // Ratinguri user local
   // =======================
   function getUserRatingsMap() {
     const raw = localStorage.getItem("beanly_user_ratings");
@@ -229,20 +241,44 @@
   }
 
   // =======================
-  // Ratinguri globale venite din Supabase
+  // Ratinguri globale din Supabase
   // =======================
   let globalRatings = {}; // { cafeId: { avg, votes } }
 
   async function loadGlobalRatings() {
     try {
-      const res = await fetch("/api/ratings");
-      if (!res.ok) {
-        console.warn("Nu s-au putut încărca ratingurile globale:", await res.text());
+      const { data, error } = await sb
+        .from("ratings")
+        .select("cafe_id, rating");
+
+      if (error) {
+        console.warn("Supabase select error:", error.message);
         return;
       }
-      globalRatings = await res.json();
+
+      const map = {};
+      (data || []).forEach(row => {
+        const id = row.cafe_id;
+        const r = row.rating;
+        if (!map[id]) {
+          map[id] = { sum: 0, count: 0 };
+        }
+        map[id].sum += r;
+        map[id].count += 1;
+      });
+
+      const result = {};
+      Object.keys(map).forEach(id => {
+        const { sum, count } = map[id];
+        result[id] = {
+          avg: sum / count,
+          votes: count
+        };
+      });
+
+      globalRatings = result;
     } catch (e) {
-      console.warn("Eroare la fetch /api/ratings:", e);
+      console.warn("Eroare la loadGlobalRatings:", e);
     }
   }
 
@@ -255,33 +291,25 @@
 
   async function sendRatingToServer(cafeId, rating) {
     const payload = {
-      cafeId,
-      rating,
-      deviceId: DEVICE_ID,
+      cafe_id: cafeId,
+      device_id: DEVICE_ID,
+      rating: rating,
     };
 
-    const res = await fetch("/api/ratings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const { error } = await sb
+      .from("ratings")
+      .insert(payload);
 
-    if (res.status === 409) {
-      // Already rated
-      throw new Error("already-rated");
+    if (error) {
+      if (error.message && error.message.includes("unique_cafe_device")) {
+        throw new Error("already-rated");
+      }
+      throw new Error("server-error: " + error.message);
     }
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error("server-error: " + text);
-    }
-
-    const inserted = await res.json();
-    return inserted;
   }
 
   // =======================
-  // Modal rating (cu 5 stele + emoji)
+  // Modal rating
   // =======================
   let currentCafeId = null;
   let currentCafeName = null;
@@ -310,7 +338,6 @@
   }
 
   function openRatingModal(cafeId, cafeName) {
-    // dacă știm deja local că userul a votat, nu mai deschidem modal
     if (hasUserRated(cafeId)) {
       const r = getUserRating(cafeId);
       alert(`Ai votat deja ${cafeName} cu ${r} ⭐ de pe acest telefon.`);
@@ -332,7 +359,6 @@
     currentRating = null;
   }
 
-  // click pe stele
   starElems.forEach(star => {
     star.addEventListener("click", () => {
       const val = parseInt(star.getAttribute("data-value"), 10);
@@ -356,15 +382,11 @@
     }
 
     try {
-      // trimitem la server
       await sendRatingToServer(currentCafeId, currentRating);
-
-      // marcam local ca a votat
       registerUserRatingLocal(currentCafeId, currentRating);
 
       alert(`✅ Mulțumim! Ai dat ${currentRating} stele pentru ${currentCafeName}.`);
 
-      // după vot, re-încărcăm ratingurile globale și UI
       await loadGlobalRatings();
       closeRatingModal();
       location.reload();
@@ -378,7 +400,7 @@
         }
       } else {
         console.error(e);
-        alert("A apărut o eroare la salvarea ratingului. Încearcă din nou.");
+        alert("Eroare la server: " + (e.message || "necunoscută"));
       }
       closeRatingModal();
     }
@@ -388,18 +410,14 @@
   // Init
   // =======================
   document.addEventListener("DOMContentLoaded", async function() {
-    // Telegram Web App setup
     const tg = window.Telegram && window.Telegram.WebApp;
     if (tg) {
       tg.expand();
-      // nu folosim MainButton acum
       tg.MainButton.hide();
     }
 
-    // 1. încărcăm ratingurile globale
     await loadGlobalRatings();
 
-    // 2. Harta
     const map = L.map('map').setView([47.040, 28.85], 12.5);
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -408,7 +426,6 @@
       maxZoom: 19
     }).addTo(map);
 
-    // 3. Markere cafenele
     cafes.forEach(cafe => {
       const avgText = getAverageText(cafe.id);
       const userRating = getUserRating(cafe.id);
